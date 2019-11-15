@@ -6,12 +6,16 @@ defined( 'ABSPATH' ) || exit; //Exit if accessed directly
  */
 class Bit_OTS_Admin {
 	private static $ins = null;
+	private $option_key;
 	public function __construct(){
 		add_action( 'admin_menu', array( $this, 'register_admin_menu' ), 90 );
 
 		//Admin enqueue scripts		 
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_assets' ), 99 );
 		add_action( 'admin_post_bitos_create_subs', array($this, 'bitos_create_subs'));
+		add_action( 'admin_post_bitos_email_settings', array($this, 'bitos_email_settings'));
+
+		$this->option_key = 'bit_os_email_settings';
 	}
 
 	/**
@@ -32,6 +36,8 @@ class Bit_OTS_Admin {
 			$this,
 			'bit_ots_page',
 		), 'dashicons-welcome-learn-more',11 );
+
+		add_submenu_page( 'bit_ots', __( 'Email Reminder', 'bit-ots' ), __( 'Email Reminder', 'bit-ots' ), 'manage_options', 'bit_os_email', array( $this, 'bitsa_email_reminder') );
 	}
 
 	public function bit_ots_page(){
@@ -44,12 +50,13 @@ class Bit_OTS_Admin {
 	public function admin_enqueue_assets() {
 		if ($this->is_bitos_page()) {
 			wp_enqueue_style( 'bitos-admin-style', BITOTS_PLUGIN_URL . '/admin/assets/css/bitos-admin.css', [], BITOTS_VERSION_DEV );
+			wp_enqueue_script( 'bitos-admin-ajax', BITOTS_PLUGIN_URL . '/admin/assets/js/bitos-admin.js', [], BITOTS_VERSION_DEV );
 		}
 	}
 
 	public function is_bitos_page(){
 		$bit_ots_page = filter_input(INPUT_GET, 'page', FILTER_SANITIZE_STRING);
-		if ('bit_ots' === $bit_ots_page) {
+		if ('bit_ots' === $bit_ots_page || 'bit_os_email' === $bit_ots_page) {
 			return true;
 		}
 		return false;
@@ -76,5 +83,50 @@ class Bit_OTS_Admin {
 				), admin_url( 'admin.php' ));
 		wp_redirect($redirect_url);
 		exit(45);
+	}
+
+	public function bitsa_email_reminder(){
+		$db_data = get_option($this->option_key,[]);
+		$default_settings = $this->get_default_settings();
+		$settings_data = wp_parse_args($db_data,$default_settings);
+		bwf_pc_debug($settings_data);
+		include_once __DIR__ . '/views/bitos-email-sections.php';
+	}
+
+	public function bitos_email_settings(){
+		$success  =false;
+		if (isset($_POST['bitos_email_settings_nonce']) && wp_verify_nonce($_POST['bitos_email_settings_nonce'],'bitos_email_settings_nonce_val')) {
+			$data = array();
+			$data['bit_e_int_week'] = isset($_POST['bit_e_int_week']) ? $_POST['bit_e_int_week'] : '';
+			$data['bit_e_sub_week'] = isset($_POST['bit_e_sub_week']) ? $_POST['bit_e_sub_week'] : '';
+			$data['bit_e_body_week'] = isset($_POST['bit_e_body_week']) ? $_POST['bit_e_body_week'] : '';
+			$data['bit_e_int_month'] = isset($_POST['bit_e_int_month']) ? $_POST['bit_e_int_month'] : '';
+			$data['bit_e_sub_month'] = isset($_POST['bit_e_sub_month']) ? $_POST['bit_e_sub_month'] : '';
+			$data['bit_e_body_month'] = isset($_POST['bit_e_body_month']) ? $_POST['bit_e_body_month'] : '';
+
+			$data = array_map('sanitize_text_field', $data);
+
+			update_option($this->option_key,$data);
+
+			$success = true;
+		}
+
+		$redirect_url = add_query_arg( array(
+				'page'    => 'bit_os_email',
+				'success' => $success,
+			), admin_url( 'admin.php' ));
+		wp_redirect($redirect_url);
+		exit(45);
+	}
+
+	public function get_default_settings(){
+		return array(
+			'bit_e_int_week' => 7,
+			'bit_e_sub_week' => 'Weekly Subject',
+			'bit_e_body_week' => 'Weekly Email Content',
+			'bit_e_int_month' => '30',
+			'bit_e_sub_month' => 'Monthly Subject',
+			'bit_e_body_month'=> 'Monthly Email Content',
+		);
 	}
 }
