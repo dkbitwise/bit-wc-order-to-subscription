@@ -97,16 +97,23 @@ class Bit_OTS_Admin {
 		$success  =false;
 		if (isset($_POST['bitos_email_settings_nonce']) && wp_verify_nonce($_POST['bitos_email_settings_nonce'],'bitos_email_settings_nonce_val')) {
 			$data = array();
-			$data['bit_e_int_week'] = isset($_POST['bit_e_int_week']) ? $_POST['bit_e_int_week'] : '';
-			$data['bit_e_sub_week'] = isset($_POST['bit_e_sub_week']) ? $_POST['bit_e_sub_week'] : '';
-			$data['bit_e_body_week'] = isset($_POST['bit_e_body_week']) ? $_POST['bit_e_body_week'] : '';
-			$data['bit_e_int_month'] = isset($_POST['bit_e_int_month']) ? $_POST['bit_e_int_month'] : '';
-			$data['bit_e_sub_month'] = isset($_POST['bit_e_sub_month']) ? $_POST['bit_e_sub_month'] : '';
-			$data['bit_e_body_month'] = isset($_POST['bit_e_body_month']) ? $_POST['bit_e_body_month'] : '';
+			
+			$data['bit_ew_on'] = isset($_POST['bit_ew_on']) ? $_POST['bit_ew_on'] : '';
+			$data['bit_ew_subject'] = isset($_POST['bit_ew_subject']) ? $_POST['bit_ew_subject'] : '';
+			$data['bit_ew_body'] = isset($_POST['bit_ew_body']) ? $_POST['bit_ew_body'] : '';
 
+			$data['bit_em_on'] = isset($_POST['bit_em_on']) ? $_POST['bit_em_on'] : '';
+			$data['bit_em_subject'] = isset($_POST['bit_ew_subject']) ? $_POST['bit_em_subject'] : '';
+			$data['bit_em_body'] = isset($_POST['bit_em_body']) ? $_POST['bit_em_body'] : '';
+
+			$data['bit_ec_on'] = isset($_POST['bit_ec_on']) ? $_POST['bit_ec_on'] : '';
+			$data['bit_ec_subject'] = isset($_POST['bit_ec_subject']) ? $_POST['bit_ec_subject'] : '';
+			$data['bit_ec_body'] = isset($_POST['bit_em_body']) ? $_POST['bit_ec_body'] : '';
+			$data['bit_ec_int'] = isset($_POST['bit_ec_int']) ? $_POST['bit_ec_int'] : '';
+			
 			$data = array_map('sanitize_text_field', $data);
-
-			update_option($this->option_key,$data);
+			$final_data = wp_parse_args($data, $this->get_default_settings());
+			update_option($this->option_key,$final_data);
 
 			$success = true;
 		}
@@ -121,12 +128,18 @@ class Bit_OTS_Admin {
 
 	public function get_default_settings(){
 		return array(
-			'bit_e_int_week' => 7,
-			'bit_e_sub_week' => 'Weekly Subject',
-			'bit_e_body_week' => 'Weekly Email Content',
-			'bit_e_int_month' => '30',
-			'bit_e_sub_month' => 'Monthly Subject',
-			'bit_e_body_month'=> 'Monthly Email Content',
+			'bit_ew_on' => false,
+			'bit_ew_subject' => 'Before one week subject',
+			'bit_ew_body' => 'Before one week email content',
+
+			'bit_em_on' => false,
+			'bit_em_subject' => 'Before one month subject',
+			'bit_em_body' => 'Before one month email content',
+
+			'bit_ec_on' => false,
+			'bit_ec_subject' => 'Before custom days subject',
+			'bit_ec_body' => 'Before custom days email content',
+			'bit_ec_int' => 10,
 		);
 	}
 }

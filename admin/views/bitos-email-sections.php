@@ -18,62 +18,107 @@ if ('yes' === $success) { ?>
 	
 	<div class="bitos-setting-container" id="bitos_settings_area">
         <!-- Tab links -->
+        <label>Tigger a reminder email before: </label>
 		<div class="tab">
-		  <button type="button" class="tablinks active" data-tab="Weekly">Weekly</button>
-		  <button type="button" class="tablinks" data-tab="Monthly">Monthly</button>
+		  <button type="button" class="tablinks active" data-tab="Week">One Week</button>
+		  <button type="button" class="tablinks" data-tab="Month">One Month</button>
+		  <button type="button" class="tablinks" data-tab="Custom">Custom days</button>
 		</div>
 
-        <!-- Tab content Weekly -->
-		<div id="Weekly" class="tabcontent">
-		  
+        <!-- Tab content Week -->
+		<div id="Week" class="tabcontent">
+
 		  <div class="bit-left">
-		  	<label>Interval (in Days)</label>
+		  	<label>Enable/Disable</label>
 		  </div>
 		  <div class="bit-right">
-		  	<input type="text" name="bit_e_int_week" placeholder="7" value="<?php echo $settings_data['bit_e_int_week'] ?>">
+		  	<label class="bit-label">
+		  		<input type="checkbox" name="bit_ew_on" value="1" <?php echo ($settings_data['bit_ew_on']) ? 'checked' : ''; ?> >
+		  		<?php esc_html_e('Enable renewal reminder email to be sent before 7 days of expiry.','bit-ots') ?>
+		  	</label>
 		  </div>
 
 		  <div class="bit-left">
 		  	<label>Subject</label>
 		  </div>
 		  <div class="bit-right">
-		  	<input type="text" value="<?php echo $settings_data['bit_e_sub_week'] ?>" name="bit_e_sub_week" placeholder="Weekly Subject">
+		  	<input type="text" value="<?php echo $settings_data['bit_ew_subject'] ?>" name="bit_ew_subject" placeholder="Before one week subject">
 		  </div>
 
 		  <div class="bit-left">
 		  	<label>Email Body</label>
 		  </div>
 		  <div class="bit-right">
-		  	<textarea rows="10" name="bit_e_body_week" cols="62" placeholder="Weekly Email content"><?php echo $settings_data['bit_e_body_week']; ?></textarea>
+		  	<textarea rows="10" name="bit_ew_body" cols="62" placeholder="Before one week email content"><?php echo $settings_data['bit_ew_body']; ?></textarea>
 		  </div>
 
 		</div>
 
-		<!-- Tab content Monthly-->
-		<div id="Monthly" class="tabcontent bitos-hide">
+		<!-- Tab content Month-->
+		<div id="Month" class="tabcontent bitos-hide">
 
 		  <div class="bit-left">
-		  	<label>Interval (in Days)</label>
+		  	<label>Enable/Disable</label>
 		  </div>
 		  <div class="bit-right">
-		  	<input type="text" value="<?php echo $settings_data['bit_e_int_month'] ?>" name="bit_e_int_month" placeholder="30">
+		  	<label class="bit-label">
+		  		<input type="checkbox" name="bit_em_on" value="1" <?php echo ($settings_data['bit_em_on']) ? 'checked' : ''; ?>>
+		  		<?php esc_html_e('Enable renewal reminder email to be sent before 30 days of expiry.','bit-ots') ?>
+		  	</label>
 		  </div>
 
 		  <div class="bit-left">
 		  	<label>Subject</label>
 		  </div>
 		  <div class="bit-right">
-		  	<input type="text" name="bit_e_sub_month" value="<?php echo $settings_data['bit_e_sub_month'] ?>" placeholder="Monthly Subject">
+		  	<input type="text" name="bit_em_subject" value="<?php echo $settings_data['bit_em_subject'] ?>" placeholder="Before one month Subject">
 		  </div>
 
 		  <div class="bit-left">
 		  	<label>Email Body</label>
 		  </div>
 		  <div class="bit-right">
-		  	<textarea rows="10" name="bit_e_body_month" cols="62" placeholder="Monthly Email content"><?php echo $settings_data['bit_e_body_month']; ?></textarea>
+		  	<textarea rows="10" name="bit_em_body" cols="62" placeholder="Bwfore one month email content"><?php echo $settings_data['bit_em_body']; ?></textarea>
 		  </div>
 
 		</div>
+
+		<!-- Tab content Custom-->
+		<div id="Custom" class="tabcontent bitos-hide">
+
+		  <div class="bit-left">
+		  	<label>Enable/Disable</label>
+		  </div>
+		  <div class="bit-right">
+		  	<label class="bit-label">
+		  		<input type="checkbox" name="bit_ec_on" value="1" <?php echo ($settings_data['bit_ec_on']) ? 'checked' : ''; ?>>
+		  		<?php esc_html_e('Enable renewal reminder email to be sent before custom days of expiry.','bit-ots') ?>
+		  	</label>
+		  </div>
+
+		  <div class="bit-left">
+		  	<label>Interval (in Days)</label>
+		  </div>
+		  <div class="bit-right">
+		  	<input type="text" name="bit_ec_int" placeholder="7" value="<?php echo $settings_data['bit_ec_int'] ?>">
+		  </div>
+
+		  <div class="bit-left">
+		  	<label>Subject</label>
+		  </div>
+		  <div class="bit-right">
+		  	<input type="text" name="bit_ec_subject" value="<?php echo $settings_data['bit_ec_subject'] ?>" placeholder="Before custom days subject">
+		  </div>
+
+		  <div class="bit-left">
+		  	<label>Email Body</label>
+		  </div>
+		  <div class="bit-right">
+		  	<textarea rows="8" name="bit_ec_body" cols="62" placeholder="Before custom days email content"><?php echo $settings_data['bit_ec_body']; ?></textarea>
+		  </div>
+
+		</div>
+
     </div>
 
 	<div class="bitsa-email-action">
