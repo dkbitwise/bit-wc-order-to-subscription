@@ -184,8 +184,18 @@ class Bit_OTS_Common {
 	}
 
 	public static function setup_schedule_to_email_reminder(){
+		$bit_os_settings = Bit_OTS_Core()->admin->bitos_get_email_settings();
+		
+		$bit_ew_on = $bit_os_settings['bit_ew_on'];
+		$bit_em_on = $bit_os_settings['bit_em_on'];
+		$bit_ec_on = $bit_os_settings['bit_ec_on'];
+
+		if (!$bit_ew_on && !$bit_em_on && !$bit_ec_on) {
+			return;
+		}
 		/*$subscriptions = wcs_get_subscriptions(['subscriptions_per_page' => -1]);
 		self::prd($subscriptions);*/
+
 		if ( false === wp_next_scheduled( 'bitos_send_reminder_email' ) ) {
 			wp_schedule_event( time(), 'daily', 'bitos_send_reminder_email' );
 		}

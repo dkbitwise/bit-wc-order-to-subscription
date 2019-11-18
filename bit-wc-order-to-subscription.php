@@ -118,7 +118,7 @@ if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 				 * Loads the Admin file
 				 */
 				require __DIR__ . '/admin/class-bit-ots-admin.php';
-				$this->public = Bit_OTS_Admin::get_instance();
+				$this->admin = Bit_OTS_Admin::get_instance();
 				
 				/**
 				 * Loads the Public file

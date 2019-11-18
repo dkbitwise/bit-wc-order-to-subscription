@@ -13,7 +13,7 @@ class Bit_OTS_Admin {
 		//Admin enqueue scripts		 
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_assets' ), 99 );
 		add_action( 'admin_post_bitos_create_subs', array($this, 'bitos_create_subs'));
-		add_action( 'admin_post_bitos_email_settings', array($this, 'bitos_email_settings'));
+		add_action( 'admin_post_bitos_email_settings', array($this, 'bitos_update_email_settings'));
 
 		$this->option_key = 'bit_os_email_settings';
 	}
@@ -86,14 +86,17 @@ class Bit_OTS_Admin {
 	}
 
 	public function bitsa_email_reminder(){
-		$db_data = get_option($this->option_key,[]);
-		$default_settings = $this->get_default_settings();
-		$settings_data = wp_parse_args($db_data,$default_settings);
-		bwf_pc_debug($settings_data);
+		$settings_data = $this->bitos_get_email_settings();
 		include_once __DIR__ . '/views/bitos-email-sections.php';
 	}
 
-	public function bitos_email_settings(){
+	public function bitos_get_email_settings(){
+		$db_data = get_option($this->option_key,[]);
+		$default_settings = $this->get_default_settings();
+		return wp_parse_args($db_data,$default_settings);		
+	}
+
+	public function bitos_update_email_settings(){
 		$success  =false;
 		if (isset($_POST['bitos_email_settings_nonce']) && wp_verify_nonce($_POST['bitos_email_settings_nonce'],'bitos_email_settings_nonce_val')) {
 			$data = array();
