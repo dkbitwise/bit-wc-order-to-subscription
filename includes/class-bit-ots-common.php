@@ -1,5 +1,6 @@
 <?php
 defined( 'ABSPATH' ) || exit; //Exit if accessed directly
+
 /**
  * This class contain handle common functions for backend and frontend
  * Class Bitwc_CC_Common
@@ -7,84 +8,74 @@ defined( 'ABSPATH' ) || exit; //Exit if accessed directly
 class Bit_OTS_Common {
 	private static $ins = null;
 	public static $start_time = 0;
+	public static $bit_os_settings = [];
 
-	public static function init(){
+	public static function init() {
 		//add_action('init',[__CLASS__,'bitsa_register_session']);		
-		add_action('wp',[__CLASS__,'setup_schedule_to_email_reminder']);		
-		add_action('bitos_send_reminder_email',[__CLASS__,'bitos_send_reminder_email_function'],9999);		
+		add_action( 'wp', [ __CLASS__, 'setup_schedule_to_email_reminder' ] );
+		add_action( 'bitos_send_reminder_email', [ __CLASS__, 'bitos_send_reminder_email_function' ], 9999 );
+		self::$bit_os_settings = Bit_OTS_Core()->admin->bitos_get_email_settings();
 	}
 
-	public static function bitsa_register_session(){
-	    if( !session_id() ){
-	        session_start();
-	        $_SESSION['bit_ots_sess'] = isset($_SESSION['bit_ots_sess']) ? $_SESSION['bit_ots_sess'] :array();
-	    }
-	}
-
-	/**
-	* return true if current login user is bitwise admin
-	*/
-	public static function is_bitwc_admin($user_id) {
-		$get_usr = self::get_logged_in_user($user_id);
-		
-		if (is_array($get_usr->roles) && (in_array('administrator', $get_usr->roles) )) {
-			return true;
+	public static function bitsa_register_session() {
+		if ( ! session_id() ) {
+			session_start();
+			$_SESSION['bit_ots_sess'] = isset( $_SESSION['bit_ots_sess'] ) ? $_SESSION['bit_ots_sess'] : array();
 		}
-		return false;
 	}
 
 	/**
-	* To print data inside pre tags for debugging
-	*/
-	public static function pr($data) {
+	 * To print data inside pre tags for debugging
+	 */
+	public static function pr( $data ) {
 		echo "<pre>";
-		print_r($data);
+		print_r( $data );
 		echo "</pre>";
 	}
 
 	/**
-	* To print data inside pre tags for debugging with a die
-	*/
-	public static function prd($data, $msg = 'die12345') {
+	 * To print data inside pre tags for debugging with a die
+	 */
+	public static function prd( $data, $msg = 'die12345' ) {
 		echo "<pre>";
-		print_r($data);
+		print_r( $data );
 		echo "</pre>";
-		die($msg);
+		die( $msg );
 	}
 
 	/**
-	* Creating subscription
-	*/
-	public static function bitots_create_subsription($simple_orders=array(), $order_product_id=0){
-		$result =[];
-		foreach ($simple_orders as $user_id => $order_id) {
-			$bit_order = wc_get_order($order_id);
-			if ($bit_order instanceof WC_Order) {
-				$user_id = $bit_order->get_customer_id();
-				$subs_created = $bit_order->get_meta('_bit_subscription_created');
-				if ((!empty($subs_created) && $subs_created > 0) || $user_id < 1) {
+	 * Creating subscription
+	 */
+	public static function bitots_create_subsription( $simple_orders = array(), $order_product_id = 0 ) {
+		$result = [];
+		foreach ( $simple_orders as $user_id => $order_id ) {
+			$bit_order = wc_get_order( $order_id );
+			if ( $bit_order instanceof WC_Order ) {
+				$user_id      = $bit_order->get_customer_id();
+				$subs_created = $bit_order->get_meta( '_bit_subscription_created' );
+				if ( ( ! empty( $subs_created ) && $subs_created > 0 ) || $user_id < 1 ) {
 					continue;
 				}
-				
-				foreach ($bit_order->get_items() as $bit_item) {
+
+				foreach ( $bit_order->get_items() as $bit_item ) {
 					$product_id = $bit_item->get_product_id();
-					if (absint($product_id) === $order_product_id) {
-						$prod_obj = wc_get_product($product_id);							
-						if ($prod_obj instanceof WC_Product_Subscription ) {
-							$stripe_cust_id = $bit_order->get_meta('_stripe_customer_id',true);
-							$stripe_src_id = $bit_order->get_meta('_stripe_source_id',true);
+					if ( absint( $product_id ) === $order_product_id ) {
+						$prod_obj = wc_get_product( $product_id );
+						if ( $prod_obj instanceof WC_Product_Subscription ) {
+							$stripe_cust_id = $bit_order->get_meta( '_stripe_customer_id', true );
+							$stripe_src_id  = $bit_order->get_meta( '_stripe_source_id', true );
 							$transaction_id = $bit_order->get_transaction_id();
 
 							$args = array(
-								'product'          => $prod_obj,
-								'order'            => $bit_order,
-								'order_id' 		   => $order_id,
-								'user_id'          => $user_id,
-								'transaction_id'   => $transaction_id,
-								'amt'              => $prod_obj->get_regular_price(),
+								'product'        => $prod_obj,
+								'order'          => $bit_order,
+								'order_id'       => $order_id,
+								'user_id'        => $user_id,
+								'transaction_id' => $transaction_id,
+								'amt'            => $prod_obj->get_regular_price(),
 							);
 
-							$subscription = self::_create_new_subscription( $args, 'completed' ) ;					
+							$subscription = self::_create_new_subscription( $args, 'completed' );
 							if ( $subscription instanceof WC_Subscription ) {
 								$subscription->update_meta_data( '_stripe_customer_id', $stripe_cust_id );
 								$subscription->update_meta_data( '_stripe_source_id', $stripe_src_id );
@@ -92,21 +83,22 @@ class Bit_OTS_Common {
 
 								$subscription_id = $subscription->get_id();
 
-								$bit_order->update_meta_data('_bit_subscription_created',$subscription_id);
+								$bit_order->update_meta_data( '_bit_subscription_created', $subscription_id );
 								$bit_order->save();
 
-								$result[$subscription_id] = (empty($stripe_cust_id) || empty($stripe_src_id));
+								$result[ $subscription_id ] = ( empty( $stripe_cust_id ) || empty( $stripe_src_id ) );
 							}
 						}
 					}
 				}
 			}
 		}
+
 		return $result;
 	}
 
-	public static function _create_new_subscription($args, $order_status){
-		
+	public static function _create_new_subscription( $args, $order_status ) {
+
 		// create a subscription
 		$product         = $args['product'];
 		$order_id        = $args['order_id'];
@@ -118,7 +110,7 @@ class Bit_OTS_Common {
 		$period       = WC_Subscriptions_Product::get_period( $product );
 		$interval     = WC_Subscriptions_Product::get_interval( $product );
 		$trial_period = WC_Subscriptions_Product::get_trial_period( $product );
-		
+
 		$subscription = wcs_create_subscription( array(
 			'start_date'       => $start_date,
 			'order_id'         => $order_id,
@@ -133,7 +125,7 @@ class Bit_OTS_Common {
 		}
 
 		if ( ! empty( $current_user_id ) && ! empty( $subscription ) ) {
-	
+
 			// link subscription product & copy address details
 			$product->set_price( $args['amt'] );
 			$subscription_item_id = $subscription->add_product( $product, 1 ); // $args
@@ -180,22 +172,11 @@ class Bit_OTS_Common {
 
 			return $subscription;
 		}
+
 		return false;
 	}
 
-	public static function setup_schedule_to_email_reminder(){
-		$bit_os_settings = Bit_OTS_Core()->admin->bitos_get_email_settings();
-		
-		$bit_ew_on = $bit_os_settings['bit_ew_on'];
-		$bit_em_on = $bit_os_settings['bit_em_on'];
-		$bit_ec_on = $bit_os_settings['bit_ec_on'];
-
-		if (!$bit_ew_on && !$bit_em_on && !$bit_ec_on) {
-			return;
-		}
-		/*$subscriptions = wcs_get_subscriptions(['subscriptions_per_page' => -1]);
-		self::prd($subscriptions);*/
-
+	public static function setup_schedule_to_email_reminder() {
 		if ( false === wp_next_scheduled( 'bitos_send_reminder_email' ) ) {
 			wp_schedule_event( time(), 'daily', 'bitos_send_reminder_email' );
 		}
@@ -203,14 +184,60 @@ class Bit_OTS_Common {
 
 	public static function bitos_send_reminder_email_function() {
 		self::$start_time = time();
-		$subscriptions = wcs_get_subscriptions(['subscriptions_per_page' => -1]);
-		self::prd($subscriptions);
 
-		/*while ( false !== ( $file = readdir( $dir ) ) ) {
+		$bit_os_settings = self::$bit_os_settings;
+
+		$bit_ew_on = $bit_os_settings['bit_ew_on'];
+		$bit_em_on = $bit_os_settings['bit_em_on'];
+		$bit_ec_on = $bit_os_settings['bit_ec_on'];
+
+		if ( ! $bit_ew_on && ! $bit_em_on && ! $bit_ec_on ) {
+			return;
+		}
+
+		$subscriptions = wcs_get_subscriptions( [ 'subscriptions_per_page' => - 1 ] );
+		foreach ( $subscriptions as $sub_id => $subscription ) {
 			if ( true === self::time_exceeded() || true === self::memory_exceeded() ) {
 				break;
 			}
-		}*/
+			$next_payment_date = $subscription->calculate_date( 'next_payment' );
+			$current_date      = date( 'Y-m-d H:i:s' );
+			$days_to_pay       = self::dateDiffInDays( $current_date, $next_payment_date );
+			$billing_email     = $subscription->get_billing_email();
+
+			Bit_OTS_Core()->admin->log( "Next payment date for subscripiton id: $sub_id is: $next_payment_date, Days to pay: $days_to_pay, bit_ew_on: $bit_ew_on, bit_em_on: $bit_em_on, bit_ec_on: $bit_ec_on" );
+
+			if ( $days_to_pay > 0 ) {
+				if ( $bit_ew_on && $days_to_pay < 8 ) {
+					$bit_lst_ew = $subscription->get_meta( '_bit_lst_ew' );
+					$lst_diff   = empty( $bit_lst_ew ) ? 0 : self::dateDiffInDays( $current_date, $bit_lst_ew );
+					if ( 0 === $lst_diff || $lst_diff > 7 ) {
+						self::bit_os_send_week_email( $billing_email, $sub_id );
+						$subscription->update_meta_data( '_bit_lst_ew', $current_date );
+					}
+				}
+
+				if ( $bit_em_on && $days_to_pay < 31 ) {
+					$bit_lst_em = $subscription->get_meta( '_bit_lst_em' );
+					$lst_diff   = empty( $bit_lst_em ) ? 0 : self::dateDiffInDays( $current_date, $bit_lst_em );
+					if ( 0 === $lst_diff || $lst_diff > 30 ) {
+						self::bit_os_send_month_email( $billing_email, $sub_id );
+						$subscription->update_meta_data( '_bit_lst_em', $current_date );
+					}
+				}
+
+				$bit_ec_int = $bit_os_settings['bit_ec_int'];
+				if ( $bit_ec_on && $days_to_pay < $bit_ec_int ) {
+					$bit_lst_ec = $subscription->get_meta( '_bit_lst_ec' );
+					$lst_diff   = empty( $bit_lst_ec ) ? 0 : self::dateDiffInDays( $current_date, $bit_lst_ec );
+					if ( 0 === $lst_diff || $lst_diff > $bit_ec_int ) {
+						self::bit_os_send_custom_email( $billing_email, $sub_id );
+						$subscription->update_meta_data( '_bit_lst_ec', $current_date );
+					}
+				}
+				$subscription->save();
+			}
+		}
 	}
 
 	public static function time_exceeded() {
@@ -252,7 +279,6 @@ class Bit_OTS_Common {
 		return self::convert_hr_to_bytes( $memory_limit ) * 1024 * 1024;
 	}
 
-
 	/**
 	 * Converts a shorthand byte value to an integer byte value.
 	 *
@@ -284,5 +310,47 @@ class Bit_OTS_Common {
 		// Deal with large (float) values which run into the maximum integer size.
 		return min( $bytes, PHP_INT_MAX );
 	}
+
+	public static function dateDiffInDays( $start_date, $end_date ) {
+		// Calulating the difference in timestamps
+		$diff = strtotime( $end_date ) - strtotime( $start_date );
+
+		return ( round( $diff / 86400 ) );
+	}
+
+	public static function bit_os_send_week_email( $billing_email, $subscription_id ) {
+		Bit_OTS_Core()->admin->log( "Weekly email sent for subscription id: $subscription_id, Billing email: $billing_email" );
+
+		$bit_os_settings = self::$bit_os_settings;
+		$subject         = $bit_os_settings['bit_ew_subject'];
+		$body            = $bit_os_settings['bit_ew_body'];
+
+		self::bits_os_send_email($billing_email, $subject, $body);
+	}
+
+	public static function bit_os_send_month_email( $billing_email, $subscription_id ) {
+		Bit_OTS_Core()->admin->log( "Monthly email sent for subscription id: $subscription_id, Billing email: $billing_email" );
+
+		$bit_os_settings = self::$bit_os_settings;
+		$subject         = $bit_os_settings['bit_em_subject'];
+		$body            = $bit_os_settings['bit_em_body'];
+
+		self::bits_os_send_email($billing_email, $subject, $body);
+	}
+
+	public static function bit_os_send_custom_email( $billing_email, $subscription_id ) {
+		Bit_OTS_Core()->admin->log( "Custom email sent for subscription id: $subscription_id, Billing email: $billing_email" );
+
+		$bit_os_settings = self::$bit_os_settings;
+		$subject         = $bit_os_settings['bit_ec_subject'];
+		$body            = $bit_os_settings['bit_ec_body'];
+
+		self::bits_os_send_email($billing_email, $subject, $body);
+	}
+
+	public static function bits_os_send_email($to, $subject, $body){
+		wp_mail($to, $subject, $body);
+	}
 }
+
 Bit_OTS_Common::init();
