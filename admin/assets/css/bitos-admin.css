@@ -49,3 +49,9 @@
 .bitsa-email-action {
     padding: 8px 0;
 }
+.bitos-row .bit-left { width: 20%; float: left;}
+.bitos-row .bit-right { width: 80%; float: right;}
+.bitos-row { border: 1px solid #ccc; margin-top: 8px; padding: 10px;}
+.bit-right .bit-note { margin: 0 auto;}
+.bitos-row .clear-both { clear: both;}
+.bitos-row .bit-right { margin-bottom: 15px;}

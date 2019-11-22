@@ -55,6 +55,7 @@ class Bit_OTS_Admin {
 		if ( $this->is_bitos_page() ) {
 			wp_enqueue_style( 'bitos-admin-style', BITOTS_PLUGIN_URL . '/admin/assets/css/bitos-admin.css', [], BITOTS_VERSION_DEV );
 			wp_enqueue_script( 'bitos-admin-ajax', BITOTS_PLUGIN_URL . '/admin/assets/js/bitos-admin.js', [], BITOTS_VERSION_DEV );
+			wp_enqueue_script( 'bitos-time-mask', BITOTS_PLUGIN_URL . '/admin/assets/js/jquery.timeMask.js', [], BITOTS_VERSION_DEV );
 		}
 	}
 
@@ -107,6 +108,8 @@ class Bit_OTS_Admin {
 		if ( isset( $_POST['bitos_email_settings_nonce'] ) && wp_verify_nonce( $_POST['bitos_email_settings_nonce'], 'bitos_email_settings_nonce_val' ) ) {
 			$data = array();
 
+			//Bit_OTS_Common::prd($_POST);
+
 			$data['bit_ew_on']      = isset( $_POST['bit_ew_on'] ) ? $_POST['bit_ew_on'] : '';
 			$data['bit_ew_subject'] = isset( $_POST['bit_ew_subject'] ) ? $_POST['bit_ew_subject'] : '';
 			$data['bit_ew_body']    = isset( $_POST['bit_ew_body'] ) ? $_POST['bit_ew_body'] : '';
@@ -119,6 +122,9 @@ class Bit_OTS_Admin {
 			$data['bit_ec_subject'] = isset( $_POST['bit_ec_subject'] ) ? $_POST['bit_ec_subject'] : '';
 			$data['bit_ec_body']    = isset( $_POST['bit_em_body'] ) ? $_POST['bit_ec_body'] : '';
 			$data['bit_ec_int']     = isset( $_POST['bit_ec_int'] ) ? $_POST['bit_ec_int'] : '';
+
+			$data['bit_batch_count'] = isset( $_POST['bit_batch_count'] ) ? $_POST['bit_batch_count'] : '';
+			$data['bit_start_time']  = isset( $_POST['bit_start_time'] ) ? $_POST['bit_start_time'] : '';
 
 			$data       = array_map( 'sanitize_text_field', $data );
 			$final_data = wp_parse_args( $data, $this->get_default_settings() );
@@ -149,6 +155,9 @@ class Bit_OTS_Admin {
 			'bit_ec_subject' => 'Before custom days subject',
 			'bit_ec_body'    => 'Before custom days email content',
 			'bit_ec_int'     => 10,
+
+			'bit_batch_count' => 50,
+			'bit_start_time'  => '01:00',
 		);
 	}
 

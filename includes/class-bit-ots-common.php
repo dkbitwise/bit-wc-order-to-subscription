@@ -174,7 +174,10 @@ class Bit_OTS_Common {
 
 	public static function setup_schedule_to_email_reminder() {
 		if ( false === wp_next_scheduled( 'bitos_send_reminder_email' ) ) {
-			wp_schedule_event( time(), 'daily', 'bitos_send_reminder_email' );
+			$time = self::$bit_os_settings['bit_start_time'];
+			$time = (5 === strlen($time)) ? $time.':00' : $time;
+			//wp_schedule_event( time(), 'daily', 'bitos_send_reminder_email' );
+			wp_schedule_event( strtotime($time), 'daily', 'bitos_send_reminder_email' );
 			//wp_schedule_event( time(), '5min', 'bitos_send_reminder_email' );
 		}
 	}
