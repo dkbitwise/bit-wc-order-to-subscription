@@ -123,7 +123,6 @@ class Bit_OTS_Common {
 		}
 
 		if ( ! empty( $current_user_id ) && ! empty( $subscription ) ) {
-
 			// link subscription product & copy address details
 			$product->set_price( $args['amt'] );
 			$subscription_item_id = $subscription->add_product( $product, 1 ); // $args
@@ -143,9 +142,7 @@ class Bit_OTS_Common {
 			if ( WC_Subscriptions_Product::get_trial_length( $product->get_id() ) > 0 ) {
 				wc_add_order_item_meta( $subscription_item_id, '_has_trial', 'true' );
 			}
-
 			// save trial period for PayPal
-
 			if ( ! empty( $trial_period ) ) {
 				update_post_meta( $subscription->get_id(), '_trial_period', $trial_period );
 			}
@@ -175,9 +172,9 @@ class Bit_OTS_Common {
 	public static function setup_schedule_to_email_reminder() {
 		if ( false === wp_next_scheduled( 'bitos_send_reminder_email' ) ) {
 			$time = self::$bit_os_settings['bit_start_time'];
-			$time = (5 === strlen($time)) ? $time.':00' : $time;
+			$time = ( 5 === strlen( $time ) ) ? $time . ':00' : $time;
 			//wp_schedule_event( time(), 'daily', 'bitos_send_reminder_email' );
-			wp_schedule_event( strtotime($time), 'daily', 'bitos_send_reminder_email' );
+			wp_schedule_event( strtotime( $time ), 'daily', 'bitos_send_reminder_email' );
 			//wp_schedule_event( time(), '5min', 'bitos_send_reminder_email' );
 		}
 	}
@@ -200,7 +197,14 @@ class Bit_OTS_Common {
 
 		$subscriptions = wcs_get_subscriptions( [ 'subscriptions_per_page' => - 1 ] );
 		foreach ( $subscriptions as $sub_id => $subscription ) {
+			$batch_count = get_option( 'bitsa_os_batch_count', 0 );
 			if ( true === self::time_exceeded() || true === self::memory_exceeded() ) {
+				update_option( 'bitsa_os_batch_count', 0 );
+				break;
+			}
+			
+			if ( $batch_count > 49 ) {
+				update_option( 'bitsa_os_batch_count', 0 );
 				break;
 			}
 
@@ -217,6 +221,7 @@ class Bit_OTS_Common {
 					$lst_diff   = empty( $bit_lst_ew ) ? 0 : self::dateDiffInDays( $current_date, $bit_lst_ew );
 					if ( 0 === $lst_diff || $lst_diff > 7 ) {
 						self::bit_os_send_week_email( $billing_email, $subscription );
+						$batch_count += 1;
 						$subscription->update_meta_data( '_bit_lst_ew', $current_date );
 					}
 				}
@@ -226,6 +231,7 @@ class Bit_OTS_Common {
 					$lst_diff   = empty( $bit_lst_em ) ? 0 : self::dateDiffInDays( $current_date, $bit_lst_em );
 					if ( 0 === $lst_diff || $lst_diff > 30 ) {
 						self::bit_os_send_month_email( $billing_email, $subscription );
+						$batch_count += 1;
 						$subscription->update_meta_data( '_bit_lst_em', $current_date );
 					}
 				}
@@ -236,9 +242,11 @@ class Bit_OTS_Common {
 					$lst_diff   = empty( $bit_lst_ec ) ? 0 : self::dateDiffInDays( $current_date, $bit_lst_ec );
 					if ( 0 === $lst_diff || $lst_diff > $bit_ec_int ) {
 						self::bit_os_send_custom_email( $billing_email, $subscription );
+						$batch_count += 1;
 						$subscription->update_meta_data( '_bit_lst_ec', $current_date );
 					}
 				}
+				update_option( 'bitsa_os_batch_count', $batch_count );
 				$subscription->save();
 			}
 		}
@@ -246,7 +254,7 @@ class Bit_OTS_Common {
 
 	/**
 	 * @param $billing_email
-	 * @param $subscription_id
+	 * @param $subscription
 	 */
 	public static function bit_os_send_week_email( $billing_email, $subscription ) {
 		$subscription_id = $subscription->get_id();
@@ -259,7 +267,7 @@ class Bit_OTS_Common {
 
 	/**
 	 * @param $billing_email
-	 * @param $subscription_id
+	 * @param $subscription
 	 */
 	public static function bit_os_send_month_email( $billing_email, $subscription ) {
 		$subscription_id = $subscription->get_id();
