@@ -202,7 +202,7 @@ class Bit_OTS_Common {
 				update_option( 'bitsa_os_batch_count', 0 );
 				break;
 			}
-			
+
 			if ( $batch_count > 49 ) {
 				update_option( 'bitsa_os_batch_count', 0 );
 				break;
