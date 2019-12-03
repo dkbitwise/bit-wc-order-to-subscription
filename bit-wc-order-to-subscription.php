@@ -4,7 +4,7 @@
  * Plugin URI:  https://dev4.bitwise.academy/
  * Description: Converting existing simple product orders to subscriptions and send email reminder about the subscription renewal
  * Version:     1.0.0
- * Author:      Dinesh Kumar Yadav
+ * Author:      Bitwise
  * Author URI:  https://dev4.bitwise.academy/
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt

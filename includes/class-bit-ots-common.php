@@ -45,8 +45,11 @@ class Bit_OTS_Common {
 	/**
 	 * Creating subscription
 	 */
-	public static function bitots_create_subsription( $simple_orders = array(), $order_product_id = 0 ) {
+	public static function bitots_create_subsription( $simple_orders = array(), $sub_product_id = 0 ) {
 		$result = [];
+		if ( $sub_product_id < 1 ) {
+			return $result;
+		}
 		foreach ( $simple_orders as $user_id => $order_id ) {
 			$bit_order = wc_get_order( $order_id );
 			if ( $bit_order instanceof WC_Order ) {
@@ -56,38 +59,33 @@ class Bit_OTS_Common {
 					continue;
 				}
 
-				foreach ( $bit_order->get_items() as $bit_item ) {
-					$product_id = $bit_item->get_product_id();
-					if ( absint( $product_id ) === $order_product_id ) {
-						$prod_obj = wc_get_product( $product_id );
-						if ( $prod_obj instanceof WC_Product_Subscription ) {
-							$stripe_cust_id = $bit_order->get_meta( '_stripe_customer_id', true );
-							$stripe_src_id  = $bit_order->get_meta( '_stripe_source_id', true );
-							$transaction_id = $bit_order->get_transaction_id();
+				$prod_obj = wc_get_product( $sub_product_id );
+				if ( $prod_obj instanceof WC_Product_Subscription ) {
+					$stripe_cust_id = $bit_order->get_meta( '_stripe_customer_id', true );
+					$stripe_src_id  = $bit_order->get_meta( '_stripe_source_id', true );
+					$transaction_id = $bit_order->get_transaction_id();
 
-							$args = array(
-								'product'        => $prod_obj,
-								'order'          => $bit_order,
-								'order_id'       => $order_id,
-								'user_id'        => $user_id,
-								'transaction_id' => $transaction_id,
-								'amt'            => $prod_obj->get_regular_price(),
-							);
+					$args = array(
+						'product'        => $prod_obj,
+						'order'          => $bit_order,
+						'order_id'       => $order_id,
+						'user_id'        => $user_id,
+						'transaction_id' => $transaction_id,
+						'amt'            => $prod_obj->get_regular_price(),
+					);
 
-							$subscription = self::_create_new_subscription( $args, 'completed' );
-							if ( $subscription instanceof WC_Subscription ) {
-								$subscription->update_meta_data( '_stripe_customer_id', $stripe_cust_id );
-								$subscription->update_meta_data( '_stripe_source_id', $stripe_src_id );
-								$subscription->save();
+					$subscription = self::_create_new_subscription( $args, 'completed' );
+					if ( $subscription instanceof WC_Subscription ) {
+						$subscription->update_meta_data( '_stripe_customer_id', $stripe_cust_id );
+						$subscription->update_meta_data( '_stripe_source_id', $stripe_src_id );
+						$subscription->save();
 
-								$subscription_id = $subscription->get_id();
+						$subscription_id = $subscription->get_id();
 
-								$bit_order->update_meta_data( '_bit_subscription_created', $subscription_id );
-								$bit_order->save();
+						$bit_order->update_meta_data( '_bit_subscription_created', $subscription_id );
+						$bit_order->save();
 
-								$result[ $subscription_id ] = ( empty( $stripe_cust_id ) || empty( $stripe_src_id ) );
-							}
-						}
+						$result[ $subscription_id ] = ( empty( $stripe_cust_id ) || empty( $stripe_src_id ) );
 					}
 				}
 			}
@@ -103,7 +101,7 @@ class Bit_OTS_Common {
 		$order           = $args['order'];
 		$current_user_id = $args['user_id'];
 		$transaction_id  = $args['transaction_id'];
-		$start_date      = $order->get_date_created()->date( 'Y-m-d H:i:s' );
+		$start_date      = current_time( 'mysql' ); //$order->get_date_created()->date( 'Y-m-d H:i:s' );
 
 		$period       = WC_Subscriptions_Product::get_period( $product );
 		$interval     = WC_Subscriptions_Product::get_interval( $product );
