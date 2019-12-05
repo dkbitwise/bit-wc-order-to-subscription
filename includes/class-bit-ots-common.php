@@ -45,16 +45,18 @@ class Bit_OTS_Common {
 	/**
 	 * Creating subscription
 	 */
-	public static function bitots_create_subsription( $simple_orders = array(), $sub_product_id = 0 ) {
+	public static function bitots_create_subsription( $simple_orders = array(), $sub_product_id ) {
 		$result = [];
 		if ( $sub_product_id < 1 ) {
 			return $result;
 		}
+		Bit_OTS_Core()->admin->log( "Sub product id: $sub_product_id, Simple order ids: " . print_r( $simple_orders, true ) );
 		foreach ( $simple_orders as $user_id => $order_id ) {
 			$bit_order = wc_get_order( $order_id );
 			if ( $bit_order instanceof WC_Order ) {
 				$user_id      = $bit_order->get_customer_id();
 				$subs_created = $bit_order->get_meta( '_bit_subscription_created' );
+				Bit_OTS_Core()->admin->log( "User id: $user_id, Subs created: $subs_created for order id: $order_id, Subs product id: $sub_product_id" );
 				if ( ( ! empty( $subs_created ) && $subs_created > 0 ) || $user_id < 1 ) {
 					continue;
 				}
@@ -73,6 +75,8 @@ class Bit_OTS_Common {
 						'transaction_id' => $transaction_id,
 						'amt'            => $prod_obj->get_regular_price(),
 					);
+
+					Bit_OTS_Core()->admin->log( "stripe_cust_id: $stripe_cust_id, stripe_src_id: $stripe_src_id, Transaction id: $transaction_id, Regular amount: " . print_r( $args['amt'], true ) );
 
 					$subscription = self::_create_new_subscription( $args, 'completed' );
 					if ( $subscription instanceof WC_Subscription ) {
@@ -96,16 +100,18 @@ class Bit_OTS_Common {
 
 	public static function _create_new_subscription( $args, $order_status ) {
 		// create a subscription
+
 		$product         = $args['product'];
 		$order_id        = $args['order_id'];
 		$order           = $args['order'];
 		$current_user_id = $args['user_id'];
 		$transaction_id  = $args['transaction_id'];
-		$start_date      = current_time( 'mysql' ); //$order->get_date_created()->date( 'Y-m-d H:i:s' );
+		$start_date      = $order->get_date_created()->date( 'Y-m-d H:i:s' ); //current_time( 'mysql' );
 
 		$period       = WC_Subscriptions_Product::get_period( $product );
 		$interval     = WC_Subscriptions_Product::get_interval( $product );
 		$trial_period = WC_Subscriptions_Product::get_trial_period( $product );
+		$trial_length = WC_Subscriptions_Product::get_trial_length( $product );
 
 		$subscription = wcs_create_subscription( array(
 			'start_date'       => $start_date,
@@ -126,36 +132,43 @@ class Bit_OTS_Common {
 			$subscription_item_id = $subscription->add_product( $product, 1 ); // $args
 			$subscription         = wcs_copy_order_address( $order, $subscription );
 
-			// set subscription dates
-			$trial_end_date    = WC_Subscriptions_Product::get_trial_expiration_date( $product->get_id(), $start_date );
-			$next_payment_date = WC_Subscriptions_Product::get_first_renewal_payment_date( $product->get_id(), $start_date );
-			$end_date          = WC_Subscriptions_Product::get_expiration_date( $product->get_id(), $start_date );
-
-			$subscription->update_dates( array(
-				'trial_end'    => $trial_end_date,
-				'next_payment' => $next_payment_date,
-				'end'          => $end_date,
-			) );
-
-			if ( WC_Subscriptions_Product::get_trial_length( $product->get_id() ) > 0 ) {
-				wc_add_order_item_meta( $subscription_item_id, '_has_trial', 'true' );
-			}
-			// save trial period for PayPal
-			if ( ! empty( $trial_period ) ) {
-				update_post_meta( $subscription->get_id(), '_trial_period', $trial_period );
+			$next_payment_datetime = wcs_add_time( $interval, $period, strtotime( $start_date ) );
+			if ( ! empty( $trial_period ) && $trial_length > 0 ) {
+				$next_payment_datetime = wcs_add_time( $trial_length, $trial_period, $next_payment_datetime );
 			}
 
-			$subscription->set_payment_method( $order->get_payment_method() );
-			$subscription->set_payment_method_title( $order->get_payment_method_title() );
+			if ( $next_payment_datetime > strtotime( date( 'Y-m-d H:i:s' ) ) ) {
+				// set subscription dates
+				$trial_end_date    = WC_Subscriptions_Product::get_trial_expiration_date( $product->get_id(), $start_date );
+				$next_payment_date = WC_Subscriptions_Product::get_first_renewal_payment_date( $product->get_id(), $start_date );
+				$end_date          = WC_Subscriptions_Product::get_expiration_date( $product->get_id(), $start_date );
 
-			if ( ! empty( $current_user_id ) ) {
-				update_post_meta( $subscription->get_id(), '_customer_user', $current_user_id );
-			}
+				$subscription->update_dates( array(
+					'trial_end'    => $trial_end_date,
+					'next_payment' => $next_payment_date,
+					'end'          => $end_date,
+				) );
 
-			if ( 'completed' === $order_status ) {
-				$subscription->payment_complete( $transaction_id );
-			} else {
-				$subscription->update_status( $order_status );
+				if ( WC_Subscriptions_Product::get_trial_length( $product->get_id() ) > 0 ) {
+					wc_add_order_item_meta( $subscription_item_id, '_has_trial', 'true' );
+				}
+				// save trial period for PayPal
+				if ( ! empty( $trial_period ) ) {
+					update_post_meta( $subscription->get_id(), '_trial_period', $trial_period );
+				}
+
+				$subscription->set_payment_method( $order->get_payment_method() );
+				$subscription->set_payment_method_title( $order->get_payment_method_title() );
+
+				if ( ! empty( $current_user_id ) ) {
+					update_post_meta( $subscription->get_id(), '_customer_user', $current_user_id );
+				}
+
+				if ( 'completed' === $order_status ) {
+					$subscription->payment_complete( $transaction_id );
+				} else {
+					$subscription->update_status( $order_status );
+				}
 			}
 
 			$subscription->calculate_totals();

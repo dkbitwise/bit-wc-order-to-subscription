@@ -70,14 +70,17 @@ class Bit_OTS_Admin {
 
 	public function bitos_create_subs() {
 		$success = 'no';
+		Bit_OTS_Core()->admin->log( "Start creating subscriptions with posted data: " . print_r( $_POST, true ) );
 		if ( isset( $_POST['bitos_create_subs_nonce'] ) && wp_verify_nonce( $_POST['bitos_create_subs_nonce'], 'bitos_create_subs_nonce_val' ) ) {
 			$bit_os_orders   = isset( $_POST['bit_ots_orders'] ) ? $_POST['bit_ots_orders'] : '';
 			$bit_ots_prod_id = isset( $_POST['bit_ots_prod_id'] ) ? absint( $_POST['bit_ots_prod_id'] ) : 0;
 			if ( ! empty( $bit_os_orders ) && $bit_ots_prod_id > 0 ) {
 				$bit_orders_ar = array_map( 'absint', explode( ",", $bit_os_orders ) );
+				Bit_OTS_Core()->admin->log( "Product id: $bit_ots_prod_id and orders: " . print_r( $bit_orders_ar, true ) );
 				if ( is_array( $bit_orders_ar ) && count( $bit_orders_ar ) > 0 ) {
 					//$order_product_id = 574;  //This is the simple product id in parent order.
 					$result  = Bit_OTS_Common::bitots_create_subsription( $bit_orders_ar, $bit_ots_prod_id );
+					Bit_OTS_Core()->admin->log( "Subs creating result: " . print_r( $result, true ) );
 					$success = ( absint( count( $result ) ) === absint( count( $bit_orders_ar ) ) ) ? 'yes' : $success;
 				}
 			}
