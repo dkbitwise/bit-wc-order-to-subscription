@@ -7,51 +7,28 @@
 .bitos-hide{display: none;}
 
 /* Style the tab */
-.tab {
-  overflow: hidden;
-  border: 1px solid #ccc;
-  background-color: #f1f1f1;
-}
+.tab {overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1;}
 
 /* Style the buttons that are used to open the tab content */
-.tab button {
-  background-color: inherit;
-  float: left;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  padding: 14px 16px;
-  transition: 0.3s;
-}
+.tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s;}
 
 /* Change background color of buttons on hover */
-.tab button:hover {
-  background-color: #ddd;
-}
+.tab button:hover { background-color: #ddd;}
 
 /* Create an active/current tablink class */
-.tab button.active {
-  background-color: #ccc;
-}
+.tab button.active { background-color: #ccc;}
 
 /* Style the tab content */
-.tabcontent {
-  padding: 6px 12px;
-  border: 1px solid #ccc;
-  border-top: none;
-}
+.tabcontent { padding: 6px 12px; border: 1px solid #ccc; border-top: none;}
 
-.tabcontent .bit-left {
-    width: 20%;
-    float: left;
-}
+.tabcontent .bit-left { width: 20%; float: left;}
 .tabcontent .bit-right {margin-bottom: 15px;}
-.bitsa-email-action {
-    padding: 8px 0;
-}
+.bitsa-email-action { padding: 8px 0;}
 .bitos-row .bit-left { width: 20%; float: left;}
 .bitos-row .bit-right { width: 80%; float: right;}
 .bitos-row { border: 1px solid #ccc; margin-top: 8px; padding: 10px;}
 .bit-right .bit-note { margin: 0 auto;}
 .bitos-row .clear-both { clear: both;}
 .bitos-row .bit-right { margin-bottom: 15px;}
+.bitos_creat_subs .bitsa-shortcodes input[type="text"] {width: 410px;}
+label[for=bitos-email-ids] { margin-left: 10%;}

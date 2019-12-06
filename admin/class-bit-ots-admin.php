@@ -72,20 +72,40 @@ class Bit_OTS_Admin {
 		$success = 'no';
 		Bit_OTS_Core()->admin->log( "Start creating subscriptions with posted data: " . print_r( $_POST, true ) );
 		if ( isset( $_POST['bitos_create_subs_nonce'] ) && wp_verify_nonce( $_POST['bitos_create_subs_nonce'], 'bitos_create_subs_nonce_val' ) ) {
-			$bit_os_orders   = isset( $_POST['bit_ots_orders'] ) ? $_POST['bit_ots_orders'] : '';
-			$bit_ots_prod_id = isset( $_POST['bit_ots_prod_id'] ) ? absint( $_POST['bit_ots_prod_id'] ) : 0;
-			if ( ! empty( $bit_os_orders ) && $bit_ots_prod_id > 0 ) {
-				$bit_orders_ar = array_map( 'absint', explode( ",", $bit_os_orders ) );
-				Bit_OTS_Core()->admin->log( "Product id: $bit_ots_prod_id and orders: " . print_r( $bit_orders_ar, true ) );
-				if ( is_array( $bit_orders_ar ) && count( $bit_orders_ar ) > 0 ) {
-					//$order_product_id = 574;  //This is the simple product id in parent order.
-					$result  = Bit_OTS_Common::bitots_create_subsription( $bit_orders_ar, $bit_ots_prod_id );
-					Bit_OTS_Core()->admin->log( "Subs creating result: " . print_r( $result, true ) );
-					$success = ( absint( count( $result ) ) === absint( count( $bit_orders_ar ) ) ) ? 'yes' : $success;
+			$bit_choose_input = isset( $_POST['bit_choose_input'] ) ? wc_clean( $_POST['bit_choose_input'] ) : '';
+			$bit_ots_prod_id  = isset( $_POST['bit_ots_prod_id'] ) ? absint( $_POST['bit_ots_prod_id'] ) : 0;
+			$bit_orders_ar= [];
+			if ( 'bitos-order-ids' === $bit_choose_input && $bit_ots_prod_id > 0 ) {
+				$bit_os_orders = isset( $_POST['bit_ots_orders'] ) ? $_POST['bit_ots_orders'] : '';
+				if ( ! empty( $bit_os_orders ) ) {
+					$bit_orders_ar = array_map( 'absint', explode( ",", $bit_os_orders ) );
+				}
+			} elseif ( 'bitos-email-ids' === $bit_choose_input && $bit_ots_prod_id > 0 ) {
+				$bitos_email_ids = isset( $_POST['bit_ots_email_ids'] ) ? $_POST['bit_ots_email_ids'] : '';
+				if ( ! empty( $bitos_email_ids ) ) {
+					$bit_emails_ar = wc_clean( explode( ",", $bitos_email_ids ) );
+					Bit_OTS_Core()->admin->log( "Product id: $bit_ots_prod_id and emails: " . print_r( $bit_emails_ar, true ) );
+					if ( is_array( $bit_emails_ar ) && count( $bit_emails_ar ) > 0 ) {
+						foreach ($bit_emails_ar as $bit_email){
+							$bit_orders = wc_get_orders(['customer' => $bit_email ]);
+							if (is_array($bit_orders) && count($bit_orders) > 0){
+								$first_order = $bit_orders[0];
+								if ($first_order instanceof WC_Order){
+									$bit_orders_ar[] = $first_order->get_id();
+								}
+							}
+						}
+					}
 				}
 			}
-		}
 
+			Bit_OTS_Core()->admin->log( "Product id: $bit_ots_prod_id, Choice: $bit_choose_input and orders: " . print_r( $bit_orders_ar, true ) );
+			if ( is_array( $bit_orders_ar ) && count( $bit_orders_ar ) > 0 ) {
+				$result = Bit_OTS_Common::bitots_create_subsription( $bit_orders_ar, $bit_ots_prod_id );
+				Bit_OTS_Core()->admin->log( "Subs creating result: " . print_r( $result, true ) );
+				$success = ( absint( count( $result ) ) === absint( count( $bit_orders_ar ) ) ) ? 'yes' : $success;
+			}
+		}
 		$redirect_url = add_query_arg( array(
 			'page'    => 'bit_ots',
 			'success' => $success,

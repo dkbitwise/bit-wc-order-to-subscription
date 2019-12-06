@@ -100,7 +100,6 @@ class Bit_OTS_Common {
 
 	public static function _create_new_subscription( $args, $order_status ) {
 		// create a subscription
-
 		$product         = $args['product'];
 		$order_id        = $args['order_id'];
 		$order           = $args['order'];
