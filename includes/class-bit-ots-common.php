@@ -91,6 +91,8 @@ class Bit_OTS_Common {
 
 						$result[ $subscription_id ] = ( empty( $stripe_cust_id ) || empty( $stripe_src_id ) );
 					}
+				} else {
+					Bit_OTS_Core()->admin->log( "Given product: $sub_product_id is not a subscription product." );
 				}
 			}
 		}

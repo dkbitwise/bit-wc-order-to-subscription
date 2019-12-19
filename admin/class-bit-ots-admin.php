@@ -17,6 +17,7 @@ class Bit_OTS_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_assets' ), 99 );
 		add_action( 'admin_post_bitos_create_subs', array( $this, 'bitos_create_subs' ) );
 		add_action( 'admin_post_bitos_email_settings', array( $this, 'bitos_update_email_settings' ) );
+		add_action( 'admin_init', [ $this, 'enable_disable_logging' ] );
 
 		$this->option_key = 'bit_os_email_settings';
 	}
@@ -36,10 +37,7 @@ class Bit_OTS_Admin {
 	 * Registeting Bitwise menu
 	 */
 	public function register_admin_menu() {
-		add_menu_page( __( 'Create Subscription', 'bit-ots' ), 'Create Subscription', 'manage_options', 'bit_ots', array(
-			$this,
-			'bit_ots_page',
-		), 'dashicons-welcome-learn-more', 11 );
+		add_menu_page( __( 'Create Subscription', 'bit-ots' ), 'Create Subscription', 'manage_options', 'bit_ots', array( $this, 'bit_ots_page' ), 'dashicons-welcome-learn-more', 11 );
 
 		add_submenu_page( 'bit_ots', __( 'Email Reminder', 'bit-ots' ), __( 'Email Reminder', 'bit-ots' ), 'manage_options', 'bit_os_email', array( $this, 'bitsa_email_reminder' ) );
 	}
@@ -74,7 +72,7 @@ class Bit_OTS_Admin {
 		if ( isset( $_POST['bitos_create_subs_nonce'] ) && wp_verify_nonce( $_POST['bitos_create_subs_nonce'], 'bitos_create_subs_nonce_val' ) ) {
 			$bit_choose_input = isset( $_POST['bit_choose_input'] ) ? wc_clean( $_POST['bit_choose_input'] ) : '';
 			$bit_ots_prod_id  = isset( $_POST['bit_ots_prod_id'] ) ? absint( $_POST['bit_ots_prod_id'] ) : 0;
-			$bit_orders_ar= [];
+			$bit_orders_ar    = [];
 			if ( 'bitos-order-ids' === $bit_choose_input && $bit_ots_prod_id > 0 ) {
 				$bit_os_orders = isset( $_POST['bit_ots_orders'] ) ? $_POST['bit_ots_orders'] : '';
 				if ( ! empty( $bit_os_orders ) ) {
@@ -86,11 +84,11 @@ class Bit_OTS_Admin {
 					$bit_emails_ar = wc_clean( explode( ",", $bitos_email_ids ) );
 					Bit_OTS_Core()->admin->log( "Product id: $bit_ots_prod_id and emails: " . print_r( $bit_emails_ar, true ) );
 					if ( is_array( $bit_emails_ar ) && count( $bit_emails_ar ) > 0 ) {
-						foreach ($bit_emails_ar as $bit_email){
-							$bit_orders = wc_get_orders(['customer' => $bit_email ]);
-							if (is_array($bit_orders) && count($bit_orders) > 0){
+						foreach ( $bit_emails_ar as $bit_email ) {
+							$bit_orders = wc_get_orders( [ 'customer' => $bit_email ] );
+							if ( is_array( $bit_orders ) && count( $bit_orders ) > 0 ) {
 								$first_order = $bit_orders[0];
-								if ($first_order instanceof WC_Order){
+								if ( $first_order instanceof WC_Order ) {
 									$bit_orders_ar[] = $first_order->get_id();
 								}
 							}
@@ -131,8 +129,6 @@ class Bit_OTS_Admin {
 		if ( isset( $_POST['bitos_email_settings_nonce'] ) && wp_verify_nonce( $_POST['bitos_email_settings_nonce'], 'bitos_email_settings_nonce_val' ) ) {
 			$data = array();
 
-			//Bit_OTS_Common::prd($_POST);
-
 			$data['bit_ew_on']      = isset( $_POST['bit_ew_on'] ) ? $_POST['bit_ew_on'] : '';
 			$data['bit_ew_subject'] = isset( $_POST['bit_ew_subject'] ) ? $_POST['bit_ew_subject'] : '';
 			$data['bit_ew_body']    = isset( $_POST['bit_ew_body'] ) ? $_POST['bit_ew_body'] : '';
@@ -166,22 +162,26 @@ class Bit_OTS_Admin {
 
 	public function get_default_settings() {
 		return array(
-			'bit_ew_on'      => false,
-			'bit_ew_subject' => 'Before one week subject',
-			'bit_ew_body'    => 'Before one week email content',
-
-			'bit_em_on'      => false,
-			'bit_em_subject' => 'Before one month subject',
-			'bit_em_body'    => 'Before one month email content',
-
-			'bit_ec_on'      => false,
-			'bit_ec_subject' => 'Before custom days subject',
-			'bit_ec_body'    => 'Before custom days email content',
-			'bit_ec_int'     => 10,
-
+			'bit_ew_on'       => false,
+			'bit_ew_subject'  => 'Before one week subject',
+			'bit_ew_body'     => 'Before one week email content',
+			'bit_em_on'       => false,
+			'bit_em_subject'  => 'Before one month subject',
+			'bit_em_body'     => 'Before one month email content',
+			'bit_ec_on'       => false,
+			'bit_ec_subject'  => 'Before custom days subject',
+			'bit_ec_body'     => 'Before custom days email content',
+			'bit_ec_int'      => 10,
 			'bit_batch_count' => 50,
 			'bit_start_time'  => '01:00',
 		);
+	}
+
+	public function enable_disable_logging() {
+		$enable = filter_input( INPUT_GET, 'bitos_enable_logging', FILTER_SANITIZE_STRING );
+		if ( ! empty( $enable ) && in_array( $enable, [ 'yes', 'no' ], true ) ) {
+			update_option( 'bitos_logging_enabled', $enable );
+		}
 	}
 
 	/**
@@ -191,7 +191,8 @@ class Bit_OTS_Admin {
 	 * @param string $message
 	 */
 	public function log( $message, $context = "Info" ) {
-		if ( ! defined( 'BITWC_OTS_IS_DEV' ) || ( defined( 'BITWC_OTS_IS_DEV' ) && false === BITWC_OTS_IS_DEV ) ) {
+		$logging_enabled = get_option( 'bitos_logging_enabled', false );
+		if (empty($logging_enabled) || 'yes' !== $logging_enabled){
 			return;
 		}
 		if ( class_exists( 'WC_Logger' ) && ! is_a( $this->logger, 'WC_Logger' ) ) {
