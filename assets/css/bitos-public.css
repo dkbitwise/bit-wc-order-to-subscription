@@ -1,0 +1,12 @@
+/**
+* Public css
+ */
+.bitots-fixed .has-background tbody td {
+    background: red;
+    color: #fff;
+    text-align: center;
+}
+
+div#bitots-notification-bar-spacer {
+    line-height: 0;
+}

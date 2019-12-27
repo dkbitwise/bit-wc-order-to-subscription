@@ -8,6 +8,7 @@ defined( 'ABSPATH' ) || exit; //Exit if accessed directly
 class Bit_OTS_Admin {
 	private static $ins = null;
 	private $option_key;
+	private $notes_option_key;
 	public $logger;
 
 	public function __construct() {
@@ -17,9 +18,11 @@ class Bit_OTS_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_assets' ), 99 );
 		add_action( 'admin_post_bitos_create_subs', array( $this, 'bitos_create_subs' ) );
 		add_action( 'admin_post_bitos_email_settings', array( $this, 'bitos_update_email_settings' ) );
+		add_action( 'admin_post_bitos_notification_settings', array( $this, 'bitos_notification_settings' ) );
 		add_action( 'admin_init', [ $this, 'enable_disable_logging' ] );
 
-		$this->option_key = 'bit_os_email_settings';
+		$this->option_key       = 'bit_os_email_settings';
+		$this->notes_option_key = 'bitos_notes_settings';
 	}
 
 	/**
@@ -38,12 +41,20 @@ class Bit_OTS_Admin {
 	 */
 	public function register_admin_menu() {
 		add_menu_page( __( 'Create Subscription', 'bit-ots' ), 'Create Subscription', 'manage_options', 'bit_ots', array( $this, 'bit_ots_page' ), 'dashicons-welcome-learn-more', 11 );
-
 		add_submenu_page( 'bit_ots', __( 'Email Reminder', 'bit-ots' ), __( 'Email Reminder', 'bit-ots' ), 'manage_options', 'bit_os_email', array( $this, 'bitsa_email_reminder' ) );
+		add_submenu_page( 'bit_ots', __( 'Notification settings', 'bit-ots' ), __( 'Notification settings', 'bit-ots' ), 'manage_options', 'bitots_notification_settings', array(
+			$this,
+			'notification_settings'
+		) );
 	}
 
 	public function bit_ots_page() {
 		include_once __DIR__ . '/views/bitos-create-subscription.php';
+	}
+
+	public function notification_settings() {
+		$notes_data = $this->bitos_get_notes_settings();
+		include_once __DIR__ . '/views/bitos-notification-settings.php';
 	}
 
 	/**
@@ -124,6 +135,13 @@ class Bit_OTS_Admin {
 		return wp_parse_args( $db_data, $default_settings );
 	}
 
+	public function bitos_get_notes_settings() {
+		$db_data          = get_option( $this->notes_option_key, [] );
+		$default_settings = $this->get_default_notes_settings();
+
+		return wp_parse_args( $db_data, $default_settings );
+	}
+
 	public function bitos_update_email_settings() {
 		$success = false;
 		if ( isset( $_POST['bitos_email_settings_nonce'] ) && wp_verify_nonce( $_POST['bitos_email_settings_nonce'], 'bitos_email_settings_nonce_val' ) ) {
@@ -177,6 +195,13 @@ class Bit_OTS_Admin {
 		);
 	}
 
+	public function get_default_notes_settings() {
+		return array(
+			'bit_ots_button_text'      => 'My Subscription',
+			'bit_ots_expired_messages' => 'Your subscription has expired. Please visit the Subscriptions page to renew.',
+		);
+	}
+
 	public function enable_disable_logging() {
 		$enable = filter_input( INPUT_GET, 'bitos_enable_logging', FILTER_SANITIZE_STRING );
 		if ( ! empty( $enable ) && in_array( $enable, [ 'yes', 'no' ], true ) ) {
@@ -192,7 +217,7 @@ class Bit_OTS_Admin {
 	 */
 	public function log( $message, $context = "Info" ) {
 		$logging_enabled = get_option( 'bitos_logging_enabled', false );
-		if (empty($logging_enabled) || 'yes' !== $logging_enabled){
+		if ( empty( $logging_enabled ) || 'yes' !== $logging_enabled ) {
 			return;
 		}
 		if ( class_exists( 'WC_Logger' ) && ! is_a( $this->logger, 'WC_Logger' ) ) {
@@ -207,5 +232,29 @@ class Bit_OTS_Admin {
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			error_log( $log_message );
 		}
+	}
+
+	public function bitos_notification_settings() {
+		$success = 'no';
+		if ( isset( $_POST['bitos_create_notification_settings'] ) && wp_verify_nonce( $_POST['bitos_create_notification_settings'], 'bitos_notification_settings_nonce_val' ) ) {
+
+			$data = array();
+
+			$data['bit_ots_button_text']      = isset( $_POST['bit_ots_button_text'] ) ? $_POST['bit_ots_button_text'] : '';
+			$data['bit_ots_expired_messages'] = isset( $_POST['bit_ots_expired_messages'] ) ? $_POST['bit_ots_expired_messages'] : '';
+
+			$data       = array_map( 'sanitize_text_field', $data );
+			$final_data = wp_parse_args( $data, $this->get_default_notes_settings() );
+			update_option( $this->notes_option_key, $final_data );
+
+			$success = 'yes';
+		}
+
+		$redirect_url = add_query_arg( array(
+			'page'    => 'bitots_notification_settings',
+			'success' => $success,
+		), admin_url( 'admin.php' ) );
+		wp_redirect( $redirect_url );
+		exit( 45 );
 	}
 }

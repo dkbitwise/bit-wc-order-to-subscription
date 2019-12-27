@@ -170,6 +170,8 @@ class Bit_OTS_Common {
 				} else {
 					$subscription->update_status( $order_status );
 				}
+			} else {
+				$subscription->update_status( 'cancelled' );
 			}
 
 			$subscription->calculate_totals();
