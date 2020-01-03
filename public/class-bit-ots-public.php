@@ -28,21 +28,29 @@ class Bit_OTS_Public {
 		$user_id    = get_current_user_id();
 		$user_data  = get_user_by( 'id', $user_id );
 
+		$subs_status = 'active';
+
 		if ( ! in_array( 'group_leader', $user_data->roles, true ) ) {
 			return;
 		}
 		$subs = wcs_get_subscriptions( [ 'customer_id' => $user_id ] );
-		//bwf_pc_debug( $subs ); ?>
+		foreach ( $subs as $sub_id => $sub ) {
+			if ( 'active' !== $sub->get_status() ) {
+				$subs_status = $sub->get_status();
+			}
+		}
+		if ( 'active' === $subs_status ) {
+			return;
+		}
+		$subs_url = site_url('my-account/subscriptions');?>
 		<div id="bitots-notification-bar-spacer">
 			<div id="bitots-notification-bar" class="bitots-fixed">
 				<!--<div class="bitots-close">X</div>-->
 				<table border="0" cellpadding="0" class="has-background">
 					<tr>
 						<td>
-							<div class="bit_ots-message"><?php echo $notes_data['bit_ots_expired_messages'] ?></div>
-							<!--<div>
-								<a class="wpfront-button" href="javascript:void(0);">Go to settings</a>
-							</div>-->
+							<div class="bit_ots-message"><?php echo $notes_data['bit_ots_expired_messages'] ?>
+								<a class="bit_ots-button button" href="<?php echo $subs_url; ?>"><?php echo $notes_data['bit_ots_button_text'] ?></a></div>
 						</td>
 					</tr>
 				</table>
