@@ -17,6 +17,7 @@ class Bit_OTS_Public {
 		add_filter( 'wcs_subscription_statuses', [ $this, 'bitos_subscription_statuses' ], 10, 1 );
 		add_action( 'wp_head', array( $this, 'write_notification_html' ) );
 		add_action( 'wp_enqueue_scripts', [ $this, 'bitots_enqueue_script' ] );
+		add_action( 'learndash-topic-before', [ $this, 'exp_notice_before_learndash_topic' ], 10, 3 );
 	}
 
 	public function bitots_enqueue_script() {
@@ -28,12 +29,15 @@ class Bit_OTS_Public {
 		$user_id    = get_current_user_id();
 		$user_data  = get_user_by( 'id', $user_id );
 
-		$subs_status = 'active';
+		if ( ! $user_data instanceof WP_User ) {
+			return;
+		}
 
 		if ( ! in_array( 'group_leader', $user_data->roles, true ) ) {
 			return;
 		}
-		$subs = wcs_get_subscriptions( [ 'customer_id' => $user_id ] );
+		$subs_status = 'active';
+		$subs        = wcs_get_subscriptions( [ 'customer_id' => $user_id ] );
 		foreach ( $subs as $sub_id => $sub ) {
 			if ( 'active' !== $sub->get_status() ) {
 				$subs_status = $sub->get_status();
@@ -42,7 +46,7 @@ class Bit_OTS_Public {
 		if ( 'active' === $subs_status ) {
 			return;
 		}
-		$subs_url = site_url('my-account/subscriptions');?>
+		$subs_url = site_url( 'my-account/subscriptions' ); ?>
 		<div id="bitots-notification-bar-spacer">
 			<div id="bitots-notification-bar" class="bitots-fixed">
 				<!--<div class="bitots-close">X</div>-->
@@ -109,5 +113,63 @@ class Bit_OTS_Public {
 		}
 
 		return self::$ins;
+	}
+
+	public function exp_notice_before_learndash_topic( $topic_id, $course_id, $user_id ) {
+		$user_data = get_user_by( 'id', $user_id );
+
+		if ( ! $user_data instanceof WP_User ) {
+			return;
+		}
+
+		if ( ! in_array( 'subscriber', $user_data->roles, true ) ) {
+			return;
+		}
+
+		$group_ids = learndash_get_users_group_ids( $user_id );
+
+		if ( ! empty( $group_ids ) ) {
+			$notes_data = Bit_OTS_Core()->admin->bitos_get_notes_settings();
+			foreach ( $group_ids as $group_id ) {
+				if ( learndash_group_has_course( $group_id, $course_id ) ) {
+					$group_leaders = learndash_get_groups_administrators( $group_id );
+
+					foreach ($group_leaders as $group_leader){
+						if ( ! $group_leader instanceof WP_User ) {
+							return;
+						}
+
+						if ( ! in_array( 'group_leader', $group_leader->roles, true ) ) {
+							return;
+						}
+						$subs_status = 'active';
+						$subs        = wcs_get_subscriptions( [ 'customer_id' => $group_leader->ID ] );
+						foreach ( $subs as $sub_id => $sub ) {
+							if ( 'active' !== $sub->get_status() ) {
+								$subs_status = $sub->get_status();
+							}
+						}
+						if ( 'active' === $subs_status ) {
+							return;
+						}
+						?>
+						<div id="bitots-notification-bar-spacer">
+							<div id="bitots-notification-bar" class="bitots-fixed">
+								<!--<div class="bitots-close">X</div>-->
+								<table border="0" cellpadding="0" class="has-background">
+									<tr>
+										<td>
+											<div class="bit_ots-message"><?php echo $notes_data['bit_ots_expired_messages'] ?></div>
+										</td>
+									</tr>
+								</table>
+							</div>
+						</div>
+						<?php
+						exit();
+					}
+				}
+			}
+		}
 	}
 }
