@@ -85,6 +85,7 @@ class Bit_OTS_Common {
 						$subscription->save();
 
 						$subscription_id = $subscription->get_id();
+						self::validate_course_access( $subscription, $sub_product_id );
 
 						$bit_order->update_meta_data( '_bit_subscription_created', $subscription_id );
 						$bit_order->save();
@@ -479,6 +480,37 @@ class Bit_OTS_Common {
 	 */
 	public static function get_order_total( $subscription ) {
 		return ( $subscription instanceof WC_Subscription ) ? $subscription->get_formatted_order_total() : '';
+	}
+
+	public static function validate_course_access( $subscription, $sub_product_id ) {
+		Bit_OTS_Core()->admin->log( "Validating course product $sub_product_id for its user in current subscription {$subscription->get_id()}" );
+		if ( $subscription instanceof WC_Subscription ) {
+			$sub_status = $subscription->get_status();
+			Bit_OTS_Core()->admin->log( "Subscription status: $sub_status" );
+			if ( 'active' !== $sub_status ) {
+				$user_id   = $subscription->get_customer_id();
+				$group_ids = learndash_get_groups( true, $user_id );
+
+				Bit_OTS_Core()->admin->log( "Subscription user id: $user_id, and group ids: " . print_r( $group_ids, true ) );
+
+				$related_course_ids = get_post_meta( $sub_product_id, '_related_course', true );
+
+				if ( ! empty( $group_ids ) && is_array( $group_ids ) && ! empty( $related_course_ids ) && is_array( $related_course_ids ) ) {
+					foreach ( $group_ids as $group_id ) {
+						Bit_OTS_Core()->admin->log( "Group id: $group_id, related courses: " . print_r( $related_course_ids, true ) );
+						foreach ( $related_course_ids as $course_id ) {
+							if ( learndash_group_has_course( $group_id, $course_id ) ) {
+								Bit_OTS_Core()->admin->log( "Group: $group_id has course: $course_id" );
+								$user_ids = learndash_get_groups_user_ids( $group_id );
+								Bit_OTS_Core()->admin->log( "Group user ids: " . print_r( $user_ids, true ) );
+								$result = ld_update_course_group_access( $course_id, $group_id, true );
+								Bit_OTS_Core()->admin->log( "Access update result: ".print_r($result,true) );
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 

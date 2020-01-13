@@ -15,7 +15,11 @@ class Bit_OTS_Public {
 		add_action( 'wp', array( $this, 'bitots_create_subsription' ), 10, 1 );
 		add_filter( 'wcs_view_subscription_actions', [ $this, 'rename_subscription_actions_button_text' ], 10, 2 );
 		add_filter( 'wcs_subscription_statuses', [ $this, 'bitos_subscription_statuses' ], 10, 1 );
-		add_action( 'wp_head', array( $this, 'write_notification_html' ) );
+		if ( has_action( 'buddyboss_inside_wrapper' ) ) {
+			add_action( 'buddyboss_inside_wrapper', array( $this, 'write_notification_html' ) );
+		} else {
+			add_action( 'wp_head', [ $this, 'write_notification_html' ] );
+		}
 		add_action( 'wp_enqueue_scripts', [ $this, 'bitots_enqueue_script' ] );
 		add_action( 'learndash-topic-before', [ $this, 'exp_notice_before_learndash_topic' ], 10, 3 );
 	}
@@ -46,7 +50,7 @@ class Bit_OTS_Public {
 		if ( 'active' === $subs_status ) {
 			return;
 		}
-		$subs_url = site_url( 'my-account/subscriptions' ); ?>
+		$subs_url = home_url( 'my-account/subscriptions' ); ?>
 		<div id="bitots-notification-bar-spacer">
 			<div id="bitots-notification-bar" class="bitots-fixed">
 				<!--<div class="bitots-close">X</div>-->
@@ -116,8 +120,9 @@ class Bit_OTS_Public {
 	}
 
 	public function exp_notice_before_learndash_topic( $topic_id, $course_id, $user_id ) {
-		$user_data = get_user_by( 'id', $user_id );
+		$user_id = get_current_user_id();
 
+		$user_data = get_user_by( 'id', $user_id );
 		if ( ! $user_data instanceof WP_User ) {
 			return;
 		}
@@ -134,7 +139,7 @@ class Bit_OTS_Public {
 				if ( learndash_group_has_course( $group_id, $course_id ) ) {
 					$group_leaders = learndash_get_groups_administrators( $group_id );
 
-					foreach ($group_leaders as $group_leader){
+					foreach ( $group_leaders as $group_leader ) {
 						if ( ! $group_leader instanceof WP_User ) {
 							return;
 						}
