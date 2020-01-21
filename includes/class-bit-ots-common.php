@@ -504,13 +504,42 @@ class Bit_OTS_Common {
 								$user_ids = learndash_get_groups_user_ids( $group_id );
 								Bit_OTS_Core()->admin->log( "Group user ids: " . print_r( $user_ids, true ) );
 								$result = ld_update_course_group_access( $course_id, $group_id, true );
-								Bit_OTS_Core()->admin->log( "Access update result: ".print_r($result,true) );
+								Bit_OTS_Core()->admin->log( "Access update result: " . print_r( $result, true ) );
 							}
 						}
 					}
 				}
 			}
 		}
+	}
+
+	/**
+	 * @param $to
+	 * @param $subject
+	 * @param $body
+	 *
+	 * @return bool
+	 */
+	public static function bitots_send_parent_email( $course_id, $stdnt_id ) {
+		Bit_OTS_Core()->admin->log( "Sending parent email to parent from student id: $stdnt_id and with course id: $course_id" );
+
+		$stdnt_user = get_user_by( 'ID', $stdnt_id );
+
+		$email_subject = sprintf( __( "Email from student: %s for renewal of the course: %s", 'bit-ots' ), $stdnt_user->user_email, get_the_title( $course_id ) );
+		$email_body    = sprintf( __( 'Reminder email from student: %s for the renewal of course: %s', 'bit-ots' ), $stdnt_user->user_email, get_the_title( $course_id ) );
+
+		$parent_email = $stdnt_user->user_email;
+
+		$mailer = WC()->mailer();
+		ob_start();
+		$mailer->email_header( $email_subject );
+		echo $email_body;
+		$mailer->email_footer();
+		$email_body            = ob_get_clean();
+		$email_abstract_object = new WC_Email();
+		$email_body            = apply_filters( 'woocommerce_mail_content', $email_abstract_object->style_inline( wptexturize( $email_body ) ) );
+
+		return wp_mail( $parent_email, $email_subject, $email_body );
 	}
 }
 
