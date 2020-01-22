@@ -528,7 +528,23 @@ class Bit_OTS_Common {
 		$email_subject = sprintf( __( "Email from student: %s for renewal of the course: %s", 'bit-ots' ), $stdnt_user->user_email, get_the_title( $course_id ) );
 		$email_body    = sprintf( __( 'Reminder email from student: %s for the renewal of course: %s', 'bit-ots' ), $stdnt_user->user_email, get_the_title( $course_id ) );
 
-		$parent_email = $stdnt_user->user_email;
+		$stdnts_grps_ids = learndash_get_users_group_ids( $stdnt_id );
+		$stdnts_grps_ids = is_array($stdnts_grps_ids) ? $stdnts_grps_ids : [];
+		foreach ($stdnts_grps_ids as $group_id){
+			$group_leaders   = learndash_get_groups_administrators( $group_id );
+			foreach ($group_leaders as $group_leader){
+				if ( ! $group_leader instanceof WP_User ) {
+					return;
+				}
+				if ( ! in_array( 'group_leader', $group_leader->roles, true ) ) {
+					return;
+				}
+				$parent_email = $group_leader->user_email;
+				if (is_email($parent_email)){
+					break 2;
+				}
+			}
+		}
 
 		$mailer = WC()->mailer();
 		ob_start();

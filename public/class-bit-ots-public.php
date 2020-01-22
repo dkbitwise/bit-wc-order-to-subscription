@@ -213,6 +213,8 @@ class Bit_OTS_Public {
 		$stdnt_id    = isset( $posted_data['stdnt_id'] ) ? $posted_data['stdnt_id'] : 0;
 
 		$sent = Bit_OTS_Common::bitots_send_parent_email( $course_id, $stdnt_id );
+		bwf_pc_debug($sent);
+		$result['sent'] = $sent;
 
 		if ($sent){
 			$result['status'] = true;

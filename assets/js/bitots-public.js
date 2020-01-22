@@ -11,14 +11,17 @@
 
 			let data = {
 				'action': 'bitots_send_email',
-				'course_id' : course_id,
-				'stdnt_id' : stdnt_id,
+				'course_id': course_id,
+				'stdnt_id': stdnt_id,
 				'_nonce': bitots.ajax_nonce_bitots_send_email
 			};
 
 			jQuery.post(ajaxurl, data, function (resp) {
+				console.log(resp);
 				if (true === resp.status) {
-					console.log(resp);
+					$('.bit_ots-message').html('<span class="sent-info">Reminder email successfully sent to your parent.</span>')
+				} else {
+					$('.bit_ots-message').html('<span class="sent-info">There are some error, please try again later!.</span>')
 				}
 			});
 		});
