@@ -17,12 +17,7 @@
 			};
 
 			jQuery.post(ajaxurl, data, function (resp) {
-				console.log(resp);
-				if (true === resp.status) {
-					$('.bit_ots-message').html('<span class="sent-info">Reminder email successfully sent to your parent.</span>')
-				} else {
-					$('.bit_ots-message').html('<span class="sent-info">There are some error, please try again later!.</span>')
-				}
+				$('.bit_ots-message').html('<span class="sent-info">Reminder email successfully sent to your parent.</span>')
 			});
 		});
 	});

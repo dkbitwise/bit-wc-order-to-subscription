@@ -14,5 +14,6 @@ div#bitots-notification-bar-spacer {
     left: 5%;
 }
 .bit_ots-message {
-    padding-left: 10px;
+    line-height: 3em;
+    padding: 0 30px;
 }
