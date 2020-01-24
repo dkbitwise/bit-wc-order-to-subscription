@@ -20,6 +20,7 @@ class Bit_OTS_Admin {
 		add_action( 'admin_post_bitos_email_settings', array( $this, 'bitos_update_email_settings' ) );
 		add_action( 'admin_post_bitos_notification_settings', array( $this, 'bitos_notification_settings' ) );
 		add_action( 'admin_init', [ $this, 'enable_disable_logging' ] );
+		add_action( 'wcs_subscription_schedule_after_billing_schedule', [ $this, 'add_expiry_date' ], 10, 1 );
 
 		$this->option_key       = 'bit_os_email_settings';
 		$this->notes_option_key = 'bitos_notes_settings';
@@ -256,5 +257,18 @@ class Bit_OTS_Admin {
 		), admin_url( 'admin.php' ) );
 		wp_redirect( $redirect_url );
 		exit( 45 );
+	}
+
+	/**
+	 * @param $subscription
+	 */
+	public function add_expiry_date( $subscription ) {
+		$expiry_date = $subscription->get_meta( 'bit_expiration_date' );
+		if ( ! empty( $expiry_date ) && 'active' !== $subscription->get_status() ) { ?>
+			<div id="subscription-bit-expiry-date" class="date-fields">
+				<strong><?php esc_html_e( 'Expiration Date:', 'bit-ots' ); ?></strong>
+				<?php echo esc_html( date( 'F j, Y', $expiry_date ) ); ?>
+			</div>
+		<?php }
 	}
 }

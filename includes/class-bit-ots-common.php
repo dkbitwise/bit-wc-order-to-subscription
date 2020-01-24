@@ -173,6 +173,7 @@ class Bit_OTS_Common {
 				}
 			} else {
 				$subscription->update_status( 'cancelled' );
+				$subscription->update_meta_data( 'bit_expiration_date', $next_payment_datetime );
 			}
 
 			$subscription->calculate_totals();
@@ -529,10 +530,10 @@ class Bit_OTS_Common {
 		$email_body    = sprintf( __( 'Reminder email from student: %s for the renewal of course: %s', 'bit-ots' ), $stdnt_user->user_email, get_the_title( $course_id ) );
 
 		$stdnts_grps_ids = learndash_get_users_group_ids( $stdnt_id );
-		$stdnts_grps_ids = is_array($stdnts_grps_ids) ? $stdnts_grps_ids : [];
-		foreach ($stdnts_grps_ids as $group_id){
-			$group_leaders   = learndash_get_groups_administrators( $group_id );
-			foreach ($group_leaders as $group_leader){
+		$stdnts_grps_ids = is_array( $stdnts_grps_ids ) ? $stdnts_grps_ids : [];
+		foreach ( $stdnts_grps_ids as $group_id ) {
+			$group_leaders = learndash_get_groups_administrators( $group_id );
+			foreach ( $group_leaders as $group_leader ) {
 				if ( ! $group_leader instanceof WP_User ) {
 					return;
 				}
@@ -540,7 +541,7 @@ class Bit_OTS_Common {
 					return;
 				}
 				$parent_email = $group_leader->user_email;
-				if (is_email($parent_email)){
+				if ( is_email( $parent_email ) ) {
 					break 2;
 				}
 			}
