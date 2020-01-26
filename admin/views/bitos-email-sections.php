@@ -6,10 +6,10 @@ defined( 'ABSPATH' ) || exit; //Exit if accessed directly ?>
 <hr class="wp-header-end">
 <?php
 $success = filter_input( INPUT_GET, 'success', FILTER_SANITIZE_STRING );
-if ( 'yes' === $success ) { ?>
-	<div class="success notice updated"><p>Subscriptions for all orders created successfully.</p></div>
-<?php } elseif ( 'no' === $success ) { ?>
-	<div class="notice notice-error"><p>Some subscriptions can not be created.</p></div>
+if ( $success > 0 || true === $success ) { ?>
+	<div class="success notice updated"><p>Email reminder settings has been successfully sent.</p></div>
+<?php } elseif ( false === $success ||  $success < 1) { ?>
+	<div class="notice notice-error"><p>Email reminder couldn't save right now!, please try again!!</p></div>
 <?php } ?>
 <p class="bit_ots-heading">Reminder Emails Settings</p>
 <form class="bitos_creat_subs" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
@@ -18,7 +18,7 @@ if ( 'yes' === $success ) { ?>
 
 	<div class="bitos-setting-container" id="bitos_settings_area">
 		<!-- Tab links -->
-		<label>Tigger a reminder email before: </label>
+		<label>Trigger a reminder email before: </label>
 		<div class="tab">
 			<button type="button" class="tablinks active" data-tab="Week">One Week</button>
 			<button type="button" class="tablinks" data-tab="Month">One Month</button>
@@ -127,10 +127,10 @@ if ( 'yes' === $success ) { ?>
 		</div>
 		<div class="bit-right">
 			<h5 class="bit-note">You can use following merge-tags in email subject and email body.</h5>
-			<p>{{customer_name}} 		= Customer billing first name</p>
-			<p>{{subscription_name}} 	= Name of package in subscripiton order</p>
-			<p>{{subscription_id}} 		= The subscription order id</p>
-			<p>{{order_total}} 			= The total renewal order amount to be paid.</p>
+			<p>{{customer_name}} = Customer billing first name</p>
+			<p>{{subscription_name}} = Name of package in subscripiton order</p>
+			<p>{{subscription_id}} = The subscription order id</p>
+			<p>{{order_total}} = The total renewal order amount to be paid.</p>
 		</div>
 		<div class="clear-both"></div>
 	</div>

@@ -9,7 +9,7 @@ $success = filter_input( INPUT_GET, 'success', FILTER_SANITIZE_STRING );
 if ( 'yes' === $success ) { ?>
 	<div class="success notice updated"><p>Subscriptions for all orders created successfully.</p></div>
 <?php } elseif ( 'no' === $success ) { ?>
-	<div class="notice notice-error"><p>Some subscriptions can not be created.</p></div>
+	<div class="notice notice-error"><p>Some subscriptions can not be created due to invalid order id or those are already created.</p></div>
 <?php } ?>
 <h4 class="bit_ots-heading"><?php esc_html_e( 'Creating subscription for simple orders', 'bit-ots' ); ?></h4>
 <form class="bitos_creat_subs" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
