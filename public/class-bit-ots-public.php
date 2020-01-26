@@ -15,9 +15,8 @@ class Bit_OTS_Public {
 		add_action( 'wp', array( $this, 'bitots_create_subsription' ), 10, 1 );
 		add_filter( 'wcs_view_subscription_actions', [ $this, 'rename_subscription_actions_button_text' ], 10, 2 );
 		add_filter( 'wcs_subscription_statuses', [ $this, 'bitos_subscription_statuses' ], 10, 1 );
-		add_action( 'buddyboss_inside_wrapper', [ $this, 'write_notification_html' ] );
+		add_action( 'buddyboss_inside_wrapper', [ $this, 'write_parent_notification_html' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'bitots_enqueue_script' ] );
-		add_action( 'learndash-topic-before', [ $this, 'exp_notice_before_learndash_topic' ], 10, 3 );
 		add_action( 'learndash-course-before', [ $this, 'expired_notice_to_student' ], 10, 3 );
 		add_action( 'wp_ajax_bitots_send_email', [ $this, 'send_parent_email' ] );
 	}
@@ -36,7 +35,7 @@ class Bit_OTS_Public {
 		wp_enqueue_style( 'bitos-public-css', BITOTS_PLUGIN_URL . '/assets/css/bitos-public.css', [], BITOTS_VERSION_DEV );
 	}
 
-	public function write_notification_html() {
+	public function write_parent_notification_html() {
 		$notes_data = Bit_OTS_Core()->admin->bitos_get_notes_settings();
 		$user_id    = get_current_user_id();
 		$user_data  = get_user_by( 'id', $user_id );
@@ -59,18 +58,12 @@ class Bit_OTS_Public {
 			return;
 		}
 		$subs_url = home_url( 'my-account/subscriptions' ); ?>
-		<div id="bitots-notification-bar-spacer">
-			<div id="bitots-notification-bar" class="bitots-fixed">
-				<!--<div class="bitots-close">X</div>-->
-				<table border="0" cellpadding="0" class="has-background">
-					<tr>
-						<td>
-							<div class="bit_ots-message"><?php echo $notes_data['bit_ots_expired_messages'] ?>
-								<a class="bit_ots-button button" href="<?php echo $subs_url; ?>"><?php echo $notes_data['bit_ots_button_text'] ?></a></div>
-						</td>
-					</tr>
-				</table>
-			</div>
+
+		<div class="bit_ots-message">
+			<p class="bit-exp-std-msg">
+				<?php echo $notes_data['bit_ots_expired_messages'] ?>
+				<a class="bit_ots-button button" href="<?php echo $subs_url; ?>"><?php echo $notes_data['bit_ots_button_text'] ?></a>
+			</p>
 		</div>
 		<?php
 	}
@@ -127,80 +120,13 @@ class Bit_OTS_Public {
 		return self::$ins;
 	}
 
-	public function exp_notice_before_learndash_topic( $topic_id, $course_id, $user_id ) {
-		$user_id = get_current_user_id();
-
-		$user_data = get_user_by( 'id', $user_id );
-		if ( ! $user_data instanceof WP_User ) {
-			return;
-		}
-
-		if ( ! in_array( 'subscriber', $user_data->roles, true ) ) {
-			return;
-		}
-
-		$group_ids = learndash_get_users_group_ids( $user_id );
-
-		if ( ! empty( $group_ids ) ) {
-			$notes_data = Bit_OTS_Core()->admin->bitos_get_notes_settings();
-			foreach ( $group_ids as $group_id ) {
-				if ( learndash_group_has_course( $group_id, $course_id ) ) {
-					$group_leaders = learndash_get_groups_administrators( $group_id );
-
-					foreach ( $group_leaders as $group_leader ) {
-						if ( ! $group_leader instanceof WP_User ) {
-							return;
-						}
-
-						if ( ! in_array( 'group_leader', $group_leader->roles, true ) ) {
-							return;
-						}
-						$subs_status = 'active';
-						$subs        = wcs_get_subscriptions( [ 'customer_id' => $group_leader->ID ] );
-						foreach ( $subs as $sub_id => $sub ) {
-							if ( 'active' !== $sub->get_status() ) {
-								$subs_status = $sub->get_status();
-							}
-						}
-						if ( 'active' === $subs_status ) {
-							return;
-						}
-						?>
-						<div id="bitots-notification-bar-spacer">
-							<div id="bitots-notification-bar" class="bitots-fixed">
-								<!--<div class="bitots-close">X</div>-->
-								<table border="0" cellpadding="0" class="has-background">
-									<tr>
-										<td>
-											<div class="bit_ots-message"><?php echo $notes_data['bit_ots_expired_messages'] ?></div>
-										</td>
-									</tr>
-								</table>
-							</div>
-						</div>
-						<?php
-						exit();
-					}
-				}
-			}
-		}
-	}
-
 	public function expired_notice_to_student( $post_id, $course_id, $user_id ) {
 		if ( ! sfwd_lms_has_access( $course_id, $user_id ) ) {
 			$notes_data = Bit_OTS_Core()->admin->bitos_get_notes_settings(); ?>
-			<div id="bitots-notification-bar-spacer">
-				<div id="bitots-notification-bar" class="bitots-fixed">
-					<table border="0" cellpadding="0" class="has-background">
-						<tr>
-							<td>
-								<div class="bit_ots-message"><?php echo $notes_data['bit_ots_expired_messages'] ?><?php esc_html_e( ' To send reminder to parent.', 'bit-ots' ); ?>
-									<a data-course_id="<?php echo esc_attr( $course_id ) ?>" data-stdnt_id="<?php echo esc_attr( $user_id ); ?>" id="bit_ots_stdt_eml" class="bit_ots-button button" href="javascript:void(0);"><?php esc_html_e( 'Click here', 'bit-ots' ); ?></a>
-								</div>
-							</td>
-						</tr>
-					</table>
-				</div>
+			<div class="bit_ots-message">
+				<p class="bit-exp-std-msg"><?php echo $notes_data['bit_ots_expired_messages'] ?><?php esc_html_e( ' To send reminder to parent.', 'bit-ots' ); ?>
+					<a data-course_id="<?php echo esc_attr( $course_id ) ?>" data-stdnt_id="<?php echo esc_attr( $user_id ); ?>" id="bit_ots_stdt_eml" class="bit_ots-button button" href="javascript:void(0);"><?php esc_html_e( 'Click here', 'bit-ots' ); ?></a>
+				</p>
 			</div>
 		<?php }
 	}
@@ -208,15 +134,14 @@ class Bit_OTS_Public {
 	public function send_parent_email() {
 		check_ajax_referer( 'bitots_send_email', '_nonce' );
 		$posted_data = array_map( 'sanitize_text_field', $_POST );
-		$result      = array( 'status' => false );
+		$result      = array( 'status' => false,'msg' => __('Reminder email to your parent has been sent successfully.','bit-ots') );
 		$course_id   = isset( $posted_data['course_id'] ) ? $posted_data['course_id'] : 0;
 		$stdnt_id    = isset( $posted_data['stdnt_id'] ) ? $posted_data['stdnt_id'] : 0;
 
 		$sent = Bit_OTS_Common::bitots_send_parent_email( $course_id, $stdnt_id );
-		bwf_pc_debug($sent);
 		$result['sent'] = $sent;
 
-		if ($sent){
+		if ( $sent ) {
 			$result['status'] = true;
 		}
 		wp_send_json( $result );

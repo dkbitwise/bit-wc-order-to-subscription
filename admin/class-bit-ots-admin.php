@@ -38,7 +38,7 @@ class Bit_OTS_Admin {
 	}
 
 	/**
-	 * Registeting Bitwise menu
+	 * Registering Bitwise menu
 	 */
 	public function register_admin_menu() {
 		add_menu_page( __( 'Create Subscription', 'bit-ots' ), 'Create Subscription', 'manage_options', 'bit_ots', array( $this, 'bit_ots_page' ), 'dashicons-welcome-learn-more', 11 );

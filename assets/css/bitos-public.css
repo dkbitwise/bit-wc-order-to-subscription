@@ -7,13 +7,21 @@
     text-align: center;
 }
 
-div#bitots-notification-bar-spacer {
+#bitots-notification-bar-spacer {
     line-height: 0;
     margin-top: 20px;
     position: relative;
     left: 5%;
 }
 .bit_ots-message {
-    line-height: 3em;
-    padding: 0 30px;
+    background: #da5939;
+    margin: 20px 0 0 0;
+}
+.bit_ots-message .bit-exp-std-msg {
+    color: #fff;
+    padding: 5px 20px;
+    text-align: center;
+}
+.single-sfwd-courses .bit_ots-message .bit_ots-button {
+    background-color: #fff;
 }

@@ -17,7 +17,7 @@
 			};
 
 			jQuery.post(ajaxurl, data, function (resp) {
-				$('.bit_ots-message').html('<span class="sent-info">Reminder email successfully sent to your parent.</span>')
+				$('.bit_ots-message').html('<p class="bit-exp-std-msg">'+resp.msg+'</p>')
 			});
 		});
 	});
