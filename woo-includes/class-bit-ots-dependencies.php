@@ -9,8 +9,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Bit_OTS_Dependencies {
 
+	//To keep all active plugins.
 	private static $active_plugins;
 
+	//Initiate this class.
 	public static function init() {
 
 		self::$active_plugins = (array) get_option( 'active_plugins', array() );
@@ -20,6 +22,10 @@ class Bit_OTS_Dependencies {
 		}
 	}
 
+	/**
+	 * To check if woocommerce is active
+	 * @return bool
+	 */
 	public static function woocommerce_active_check() {
 
 		if ( ! self::$active_plugins ) {

@@ -6,44 +6,30 @@ defined( 'ABSPATH' ) || exit; //Exit if accessed directly
  * Class Bit_OTS_Common
  */
 class Bit_OTS_Common {
+	//Time to start the background process
 	public static $start_time = 0;
+
+	//Variable to hold the plugins settings throughout this class.
 	public static $bit_os_settings = [];
 
+	//Initiating the plugins statically
 	public static function init() {
-		//add_action('init',[__CLASS__,'bitsa_register_session']);		
+		//Scheduling the email to be sent at set interval from settings
 		add_action( 'wp', [ __CLASS__, 'setup_schedule_to_email_reminder' ] );
+
+		//Sending reminder emails.
 		add_action( 'bitos_send_reminder_email', [ __CLASS__, 'bitos_send_reminder_email_function' ], 9999 );
-		//add_filter( 'cron_schedules', [ __CLASS__, 'bitos_custom_schedule_interval' ], 10, 1 );
 
 		self::$bit_os_settings = Bit_OTS_Core()->admin->bitos_get_email_settings();
 	}
 
-	public static function bitos_custom_schedule_interval( $schedules ) {
-		if ( ! isset( $schedules["5min"] ) ) {
-			$schedules["5min"] = array(
-				'interval' => 5 * 60,
-				'display'  => __( 'Once every 5 minutes' )
-			);
-		}
-		if ( ! isset( $schedules["30min"] ) ) {
-			$schedules["30min"] = array(
-				'interval' => 30 * 60,
-				'display'  => __( 'Once every 30 minutes' )
-			);
-		}
-
-		return $schedules;
-	}
-
-	public static function bitsa_register_session() {
-		if ( ! session_id() ) {
-			session_start();
-			$_SESSION['bit_ots_sess'] = isset( $_SESSION['bit_ots_sess'] ) ? $_SESSION['bit_ots_sess'] : array();
-		}
-	}
-
 	/**
-	 * Creating subscription
+	 * Creating subscription by passing simple order id(s) and the subscription product id.
+	 *
+	 * @param array $simple_orders
+	 * @param $sub_product_id
+	 *
+	 * @return array
 	 */
 	public static function bitots_create_subsription( $simple_orders = array(), $sub_product_id ) {
 		$result = [];
@@ -53,7 +39,7 @@ class Bit_OTS_Common {
 		Bit_OTS_Core()->admin->log( "Sub product id: $sub_product_id, Simple order ids: " . print_r( $simple_orders, true ) );
 		foreach ( $simple_orders as $user_id => $order_id ) {
 			$bit_order = wc_get_order( $order_id );
-			if ( $bit_order instanceof WC_Order ) {
+			if ( $bit_order instanceof WC_Order ) { //Validate the supplied order is a valid woocommerce order
 				$user_id      = $bit_order->get_customer_id();
 				$subs_created = $bit_order->get_meta( '_bit_subscription_created' );
 				Bit_OTS_Core()->admin->log( "User id: $user_id, Subs created: $subs_created for order id: $order_id, Subs product id: $sub_product_id" );
@@ -62,7 +48,7 @@ class Bit_OTS_Common {
 				}
 
 				$prod_obj = wc_get_product( $sub_product_id );
-				if ( $prod_obj instanceof WC_Product_Subscription ) {
+				if ( $prod_obj instanceof WC_Product_Subscription ) { //Validating the new subscription product
 					$stripe_cust_id = $bit_order->get_meta( '_stripe_customer_id', true );
 					$stripe_src_id  = $bit_order->get_meta( '_stripe_source_id', true );
 					$transaction_id = $bit_order->get_transaction_id();
@@ -73,13 +59,14 @@ class Bit_OTS_Common {
 						'order_id'       => $order_id,
 						'user_id'        => $user_id,
 						'transaction_id' => $transaction_id,
-						'amt'            => $prod_obj->get_regular_price(),
+						'amt'            => $prod_obj->get_sale_price(),
 					);
 
 					Bit_OTS_Core()->admin->log( "stripe_cust_id: $stripe_cust_id, stripe_src_id: $stripe_src_id, Transaction id: $transaction_id, Regular amount: " . print_r( $args['amt'], true ) );
 
+					//Calling function to create subscription and handling the results.
 					$subscription = self::_create_new_subscription( $args, 'completed' );
-					if ( $subscription instanceof WC_Subscription ) {
+					if ( $subscription instanceof WC_Subscription ) { //Validating created subscription
 						$subscription->update_meta_data( '_stripe_customer_id', $stripe_cust_id );
 						$subscription->update_meta_data( '_stripe_source_id', $stripe_src_id );
 						$subscription->save();
@@ -87,6 +74,7 @@ class Bit_OTS_Common {
 						$subscription_id = $subscription->get_id();
 						self::validate_course_access( $subscription, $sub_product_id );
 
+						//Updating the order meta to avoid double subscription creation.
 						$bit_order->update_meta_data( '_bit_subscription_created', $subscription_id );
 						$bit_order->save();
 
@@ -101,8 +89,18 @@ class Bit_OTS_Common {
 		return $result;
 	}
 
+	/**
+	 * Creating subscription after getting parsed argument and the simple order status.
+	 *
+	 * @param $args
+	 * @param $order_status
+	 *
+	 * @return bool|WC_Order|WC_Subscription|WP_Error
+	 * @throws WC_Data_Exception
+	 */
 	public static function _create_new_subscription( $args, $order_status ) {
 		// create a subscription
+		global $next_payment_datetime;
 		$product         = $args['product'];
 		$order_id        = $args['order_id'];
 		$order           = $args['order'];
@@ -115,6 +113,7 @@ class Bit_OTS_Common {
 		$trial_period = WC_Subscriptions_Product::get_trial_period( $product );
 		$trial_length = WC_Subscriptions_Product::get_trial_length( $product );
 
+		//Woocommerce subscription function to create the actual subscription
 		$subscription = wcs_create_subscription( array(
 			'start_date'       => $start_date,
 			'order_id'         => $order_id,
@@ -128,15 +127,28 @@ class Bit_OTS_Common {
 			return false;
 		}
 
+		//Handling course access and expiration after creating subscription from simple order
 		if ( ! empty( $current_user_id ) && ! empty( $subscription ) ) {
 			// link subscription product & copy address details
 			$product->set_price( $args['amt'] );
 			$subscription_item_id = $subscription->add_product( $product, 1 ); // $args
 			$subscription         = wcs_copy_order_address( $order, $subscription );
 
+			//Calculating next payment date for renewal
 			$next_payment_datetime = wcs_add_time( $interval, $period, strtotime( $start_date ) );
 			if ( ! empty( $trial_period ) && $trial_length > 0 ) {
 				$next_payment_datetime = wcs_add_time( $trial_length, $trial_period, $next_payment_datetime );
+			}
+
+			//Expiring course access if subscription interval reached.
+			$group_ids = learndash_get_groups( true, $current_user_id );
+			if ( ! empty( $group_ids ) && is_array( $group_ids ) ) {
+				foreach ( $group_ids as $group_id ) {
+					$user_ids = learndash_get_groups_user_ids( $group_id );
+					foreach ( $user_ids as $user_id ) {
+						update_user_meta( $user_id, 'user_expire_date', $next_payment_datetime );
+					}
+				}
 			}
 
 			if ( $next_payment_datetime > strtotime( date( 'Y-m-d H:i:s' ) ) ) {
@@ -159,6 +171,7 @@ class Bit_OTS_Common {
 					update_post_meta( $subscription->get_id(), '_trial_period', $trial_period );
 				}
 
+				//Updating the payment method in subscription order as it was in simple order
 				$subscription->set_payment_method( $order->get_payment_method() );
 				$subscription->set_payment_method_title( $order->get_payment_method_title() );
 
@@ -166,14 +179,18 @@ class Bit_OTS_Common {
 					update_post_meta( $subscription->get_id(), '_customer_user', $current_user_id );
 				}
 
+				//Updating subscription status based on simple order status
 				if ( 'completed' === $order_status ) {
 					$subscription->payment_complete( $transaction_id );
 				} else {
 					$subscription->update_status( $order_status );
 				}
-			} else {
-				$subscription->update_status( 'cancelled' );
+			} else { //Add expiration date and next payment dates
+				$next_payment_date = WC_Subscriptions_Product::get_first_renewal_payment_date( $product->get_id(), $start_date );
+				$subscription->update_meta_data( '_schedule_next_payment', $next_payment_date );
+				$subscription->update_meta_data( '_schedule_end', $next_payment_date );
 				$subscription->update_meta_data( 'bit_expiration_date', $next_payment_datetime );
+				$subscription->update_meta_data( '_schedule_end', $next_payment_date );
 			}
 
 			$subscription->calculate_totals();
@@ -185,18 +202,19 @@ class Bit_OTS_Common {
 		return false;
 	}
 
+	/**
+	 * Setup wp schedule event to check and send reminder emails.
+	 */
 	public static function setup_schedule_to_email_reminder() {
 		if ( false === wp_next_scheduled( 'bitos_send_reminder_email' ) ) {
 			$time = self::$bit_os_settings['bit_start_time'];
 			$time = ( 5 === strlen( $time ) ) ? $time . ':00' : $time;
-			//wp_schedule_event( time(), 'daily', 'bitos_send_reminder_email' );
 			wp_schedule_event( strtotime( $time ), 'daily', 'bitos_send_reminder_email' );
-			//wp_schedule_event( time(), '5min', 'bitos_send_reminder_email' );
 		}
 	}
 
 	/**
-	 * Scheduled task for sending mail.
+	 * Scheduled task for sending mail on different intervals
 	 */
 	public static function bitos_send_reminder_email_function() {
 		self::$start_time = time();
@@ -207,10 +225,12 @@ class Bit_OTS_Common {
 		$bit_em_on = $bit_os_settings['bit_em_on'];
 		$bit_ec_on = $bit_os_settings['bit_ec_on'];
 
+		//Return if no settings is enabled to send reminder emails form admin settings
 		if ( ! $bit_ew_on && ! $bit_em_on && ! $bit_ec_on ) {
 			return;
 		}
 
+		//Get all subscriptions to get their expiration dates and email reminder notification.
 		$subscriptions = wcs_get_subscriptions( [ 'subscriptions_per_page' => - 1 ] );
 		foreach ( $subscriptions as $sub_id => $subscription ) {
 			$batch_count = get_option( 'bitsa_os_batch_count', 0 );
@@ -219,6 +239,7 @@ class Bit_OTS_Common {
 				break;
 			}
 
+			//Sending 50 emails in a batch process
 			if ( $batch_count > 49 ) {
 				update_option( 'bitsa_os_batch_count', 0 );
 				break;
@@ -232,6 +253,7 @@ class Bit_OTS_Common {
 			Bit_OTS_Core()->admin->log( "Next payment date for subscripiton id: $sub_id is: $next_payment_date, Days to pay: $days_to_pay, bit_ew_on: $bit_ew_on, bit_em_on: $bit_em_on, bit_ec_on: $bit_ec_on" );
 
 			if ( $days_to_pay > 0 ) {
+				//Sending one week before email reminder
 				if ( $bit_ew_on && $days_to_pay < 8 ) {
 					$bit_lst_ew = $subscription->get_meta( '_bit_lst_ew' );
 					$lst_diff   = empty( $bit_lst_ew ) ? 0 : self::dateDiffInDays( $current_date, $bit_lst_ew );
@@ -242,6 +264,7 @@ class Bit_OTS_Common {
 					}
 				}
 
+				//Sending reminder, one month before expiration
 				if ( $bit_em_on && $days_to_pay < 31 ) {
 					$bit_lst_em = $subscription->get_meta( '_bit_lst_em' );
 					$lst_diff   = empty( $bit_lst_em ) ? 0 : self::dateDiffInDays( $current_date, $bit_lst_em );
@@ -252,6 +275,7 @@ class Bit_OTS_Common {
 					}
 				}
 
+				//Sending custom days reminder emails
 				$bit_ec_int = $bit_os_settings['bit_ec_int'];
 				if ( $bit_ec_on && $days_to_pay < $bit_ec_int ) {
 					$bit_lst_ec = $subscription->get_meta( '_bit_lst_ec' );
@@ -269,6 +293,8 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Function to send scheduled email reminders.
+	 *
 	 * @param $billing_email
 	 * @param $subscription
 	 */
@@ -282,6 +308,8 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Function to send monthly email reminder
+	 *
 	 * @param $billing_email
 	 * @param $subscription
 	 */
@@ -295,6 +323,8 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Schedule to send custom days email reminder
+	 *
 	 * @param $billing_email
 	 * @param $subscription_id
 	 */
@@ -309,6 +339,8 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Actaul function to send all emails which are scheduled.
+	 *
 	 * @param $to
 	 * @param $subject
 	 * @param $body
@@ -334,6 +366,7 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Start sending batch emails again after 20 second after completing one batch
 	 * @return bool
 	 */
 	public static function time_exceeded() {
@@ -347,6 +380,7 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Check if memory exceeded in background process
 	 * @return bool
 	 */
 	public static function memory_exceeded() {
@@ -362,6 +396,7 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Find memory limit of the server
 	 * @return float|int
 	 */
 	public static function get_memory_limit() {
@@ -400,12 +435,13 @@ class Bit_OTS_Common {
 		} elseif ( false !== strpos( $value, 'k' ) ) {
 			$bytes *= KB_IN_BYTES;
 		}
-
 		// Deal with large (float) values which run into the maximum integer size.
 		return min( $bytes, PHP_INT_MAX );
 	}
 
 	/**
+	 * Find the difference between two date in days
+	 *
 	 * @param $start_date
 	 * @param $end_date
 	 *
@@ -418,27 +454,9 @@ class Bit_OTS_Common {
 		return ( round( $diff / 86400 ) );
 	}
 
-	/**
-	 * To print data inside pre tags for debugging
-	 */
-	public static function pr( $data ) {
-		echo "<pre>";
-		print_r( $data );
-		echo "</pre>";
-	}
 
 	/**
-	 * To print data inside pre tags for debugging with a die
-	 */
-	public static function prd( $data, $msg = 'die12345' ) {
-		echo "<pre>";
-		print_r( $data );
-		echo "</pre>";
-		die( $msg );
-	}
-
-	/**
-	 * Decoding merge tags
+	 * Decoding merge tags for sending email templates
 	 *
 	 * @param $content
 	 *
@@ -455,6 +473,8 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Finding customer name form the subscription object
+	 *
 	 * @param $subscription_id
 	 *
 	 * @return string
@@ -466,6 +486,8 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Finding the course name
+	 *
 	 * @param $subscription_id
 	 *
 	 * @return string
@@ -475,6 +497,8 @@ class Bit_OTS_Common {
 	}
 
 	/**
+	 * Get the subscription total to be sent in email reminder
+	 *
 	 * @param $subscription_id
 	 *
 	 * @return string
@@ -483,38 +507,37 @@ class Bit_OTS_Common {
 		return ( $subscription instanceof WC_Subscription ) ? $subscription->get_formatted_order_total() : '';
 	}
 
+	/**
+	 * Validate course access by users
+	 *
+	 * @param $subscription
+	 * @param $sub_product_id
+	 */
 	public static function validate_course_access( $subscription, $sub_product_id ) {
-		Bit_OTS_Core()->admin->log( "Validating course product $sub_product_id for its user in current subscription {$subscription->get_id()}" );
+		global $wpdb, $next_payment_datetime;
 		if ( $subscription instanceof WC_Subscription ) {
-			$sub_status = $subscription->get_status();
+			$sub_status = $subscription->get_status(); //print_r($subscription);
 			Bit_OTS_Core()->admin->log( "Subscription status: $sub_status" );
 			if ( 'active' !== $sub_status ) {
 				$user_id   = $subscription->get_customer_id();
 				$group_ids = learndash_get_groups( true, $user_id );
-
-				Bit_OTS_Core()->admin->log( "Subscription user id: $user_id, and group ids: " . print_r( $group_ids, true ) );
-
-				$related_course_ids = get_post_meta( $sub_product_id, '_related_course', true );
-
-				if ( ! empty( $group_ids ) && is_array( $group_ids ) && ! empty( $related_course_ids ) && is_array( $related_course_ids ) ) {
+				if ( ! empty( $group_ids ) && is_array( $group_ids ) ) {
 					foreach ( $group_ids as $group_id ) {
-						Bit_OTS_Core()->admin->log( "Group id: $group_id, related courses: " . print_r( $related_course_ids, true ) );
-						foreach ( $related_course_ids as $course_id ) {
-							if ( learndash_group_has_course( $group_id, $course_id ) ) {
-								Bit_OTS_Core()->admin->log( "Group: $group_id has course: $course_id" );
-								$user_ids = learndash_get_groups_user_ids( $group_id );
-								Bit_OTS_Core()->admin->log( "Group user ids: " . print_r( $user_ids, true ) );
-								$result = ld_update_course_group_access( $course_id, $group_id, true );
-								Bit_OTS_Core()->admin->log( "Access update result: " . print_r( $result, true ) );
-							}
+						$user_ids = learndash_get_groups_user_ids( $group_id );
+						foreach ( $user_ids as $user_id ) {
+							update_user_meta( $user_id, 'user_expire_date', $next_payment_datetime );
 						}
 					}
 				}
 			}
 		}
+
 	}
 
+
 	/**
+	 * Send parent reminder email by student
+	 *
 	 * @param $to
 	 * @param $subject
 	 * @param $body
@@ -529,9 +552,11 @@ class Bit_OTS_Common {
 		$email_subject = sprintf( __( "Email from student: %s for renewal of the course: %s", 'bit-ots' ), $stdnt_user->user_email, get_the_title( $course_id ) );
 		$email_body    = sprintf( __( 'Reminder email from student: %s for the renewal of course: %s', 'bit-ots' ), $stdnt_user->user_email, get_the_title( $course_id ) );
 
+		//Get student group ids for matching the current group
 		$stdnts_grps_ids = learndash_get_users_group_ids( $stdnt_id );
 		$stdnts_grps_ids = is_array( $stdnts_grps_ids ) ? $stdnts_grps_ids : [];
 		foreach ( $stdnts_grps_ids as $group_id ) {
+			//Get student group leaders
 			$group_leaders = learndash_get_groups_administrators( $group_id );
 			foreach ( $group_leaders as $group_leader ) {
 				if ( ! $group_leader instanceof WP_User ) {
@@ -547,11 +572,12 @@ class Bit_OTS_Common {
 			}
 		}
 
+		//using woocommerce standard mailer class to send parent reminder emails.
 		$mailer = WC()->mailer();
 		ob_start();
-		$mailer->email_header( $email_subject );
+		$mailer->email_header( $email_subject ); //Get WC email header
 		echo $email_body;
-		$mailer->email_footer();
+		$mailer->email_footer(); //Get WC email footer
 		$email_body            = ob_get_clean();
 		$email_abstract_object = new WC_Email();
 		$email_body            = apply_filters( 'woocommerce_mail_content', $email_abstract_object->style_inline( wptexturize( $email_body ) ) );

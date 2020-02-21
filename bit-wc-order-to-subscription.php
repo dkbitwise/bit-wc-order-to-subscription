@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Bitwise WC Order to Subscription
- * Plugin URI:  https://dev4.bitwise.academy/
+ * Plugin URI:  https://bitwiseacademy.com/
  * Description: Converting existing simple product orders to subscriptions and send email reminder about the subscription renewal
  * Version:     1.0.0
- * Author:      Bitwise
- * Author URI:  https://dev4.bitwise.academy/
+ * Author:      Bitwise Academy
+ * Author URI:  https://bitwiseacademy.com/
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain: bit-ots
@@ -17,11 +17,15 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
+//Defining plugin core class
 if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 
+	/**
+	 * Class Bit_OTS_Core
+	 */
 	class Bit_OTS_Core {
 		/**
-		 * @var Bit_OTS_Core
+		 * @var Bit_OTS_Core instance
 		 */
 		public static $_instance = null;
 
@@ -36,7 +40,7 @@ if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 		public $public;
 		
 		/**
-		 * @var bool Dependency check property
+		 * @var bool Dependency check for woocommerce existence
 		 */
 		private $is_dependency_exists = true;
 		/**
@@ -80,16 +84,24 @@ if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 			( defined( 'BITOTS_IS_DEV' ) && true === BITOTS_IS_DEV ) ? define( 'BITOTS_VERSION_DEV', time() ) : define( 'BITOTS_VERSION_DEV', BITOTS_VERSION );
 		}
 
+		/**
+		 * Defining plugin's url to include assets like js and css files.
+		 */
 		public function load_wp_dependent_properties() {
 			define( 'BITOTS_PLUGIN_URL', untrailingslashit( plugin_dir_url( BITOTS_PLUGIN_FILE ) ) );
-			define( 'BITOTS_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 		}
 
+		/**
+		 * Loading woocommerce dependency check file for their active state
+		 */
 		public function load_dependencies_support() {
 			/** Setting up WooCommerce Dependency Classes */
 			require_once( __DIR__ . '/woo-includes/woo-functions.php' );
 		}
 
+		/**
+		 * Checking if woocommerce is active or not
+		 */
 		public function do_dependency_check() {
 			if ( ! bit_ots_is_woocommerce_active() ) {
 				add_action( 'admin_notices', array( $this, 'wc_not_installed_notice' ) );
@@ -97,6 +109,9 @@ if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 			}
 		}
 
+		/**
+		 * Loading hooks for adding localization and adding classes
+		 */
 		public function load_hooks() {
 			/**
 			 * Initialize Localization
@@ -105,6 +120,10 @@ if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 			add_action( 'plugins_loaded', array( $this, 'load_classes' ), 1 );
 		}
 
+		/**
+		 * Loading classes files
+		 * @return bool|null
+		 */
 		public function load_classes() {
 			if ( bit_ots_is_woocommerce_active() && class_exists( 'WooCommerce' ) ) {
 				global $woocommerce;
@@ -135,6 +154,10 @@ if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 			return null;
 		}
 
+		/**
+		 * Creating an instance of this class
+		 * @return Bit_OTS_Core
+		 */
 		public static function get_instance() {
 			if ( null === self::$_instance ) {
 				self::$_instance = new self;
@@ -143,10 +166,16 @@ if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 			return self::$_instance;
 		}
 
+		/**
+		 * Internalization of the plugin
+		 */
 		public function localization() {
 			load_plugin_textdomain( 'bit-ots', false, plugin_basename( dirname( __FILE__ ) ) . '/languages' );
 		}
 
+		/**
+		 * Showing the wooocommerce version notice if not compatible
+		 */
 		public function wc_version_check_notice() { ?>
             <div class="error">
                 <p>
@@ -158,6 +187,9 @@ if ( ! class_exists( 'Bit_OTS_Core' ) ) {
 			<?php
 		}
 
+		/**
+		 * Showing the notice if woocommerce is not installed.
+		 */
 		public function wc_not_installed_notice() {	?>
             <div class="error">
                 <p>

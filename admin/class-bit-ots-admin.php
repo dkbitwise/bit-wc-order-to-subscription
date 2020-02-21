@@ -7,26 +7,47 @@ defined( 'ABSPATH' ) || exit; //Exit if accessed directly
  */
 class Bit_OTS_Admin {
 	private static $ins = null;
+	//Key to save settings in option table
 	private $option_key;
+
+	//Key to save notifications settings in option table
 	private $notes_option_key;
+
+	//Logging the flow to debug in case of error
 	public $logger;
 
+	/**
+	 * Bit_OTS_Admin constructor.
+	 */
 	public function __construct() {
+		//Create the amdin menu
 		add_action( 'admin_menu', array( $this, 'register_admin_menu' ), 90 );
 
-		//Admin enqueue scripts
+		//Admin enqueue assets like css and js
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_assets' ), 99 );
+
+		//Calling creating subscriptions functions on submitting the admin form
 		add_action( 'admin_post_bitos_create_subs', array( $this, 'bitos_create_subs' ) );
+
+		//Updating schedule email settings in option table on form submission
 		add_action( 'admin_post_bitos_email_settings', array( $this, 'bitos_update_email_settings' ) );
+
+		//Updating notification settings in option table on form submission
 		add_action( 'admin_post_bitos_notification_settings', array( $this, 'bitos_notification_settings' ) );
+
+		//Enable/disable the logging from query params
 		add_action( 'admin_init', [ $this, 'enable_disable_logging' ] );
+
+		//Adding expiry date in subscription edit page
 		add_action( 'wcs_subscription_schedule_after_billing_schedule', [ $this, 'add_expiry_date' ], 10, 1 );
 
+		//Option keys to save settings
 		$this->option_key       = 'bit_os_email_settings';
 		$this->notes_option_key = 'bitos_notes_settings';
 	}
 
 	/**
+	 * Creating an instance of this class
 	 * @return Bit_OTS_Admin|null
 	 */
 	public static function get_instance() {
@@ -38,7 +59,7 @@ class Bit_OTS_Admin {
 	}
 
 	/**
-	 * Registering Bitwise menu
+	 * Registering Bitwise menu and submenus
 	 */
 	public function register_admin_menu() {
 		add_menu_page( __( 'Create Subscription', 'bit-ots' ), 'Create Subscription', 'manage_options', 'bit_ots', array( $this, 'bit_ots_page' ), 'dashicons-welcome-learn-more', 11 );
@@ -49,17 +70,23 @@ class Bit_OTS_Admin {
 		) );
 	}
 
+	/**
+	 * Including create subscription form template
+	 */
 	public function bit_ots_page() {
 		include_once __DIR__ . '/views/bitos-create-subscription.php';
 	}
 
+	/*
+	 * Including notification settings template
+	 */
 	public function notification_settings() {
 		$notes_data = $this->bitos_get_notes_settings();
 		include_once __DIR__ . '/views/bitos-notification-settings.php';
 	}
 
 	/**
-	 * Adding admin scripts
+	 * Adding admin assets like css and js files
 	 */
 	public function admin_enqueue_assets() {
 		if ( $this->is_bitos_page() ) {
@@ -69,6 +96,10 @@ class Bit_OTS_Admin {
 		}
 	}
 
+	/**
+	 * Function to check if it page created by this plugin
+	 * @return bool
+	 */
 	public function is_bitos_page() {
 		$bit_ots_page = filter_input( INPUT_GET, 'page', FILTER_SANITIZE_STRING );
 		if ( 'bit_ots' === $bit_ots_page || 'bit_os_email' === $bit_ots_page ) {
@@ -78,6 +109,9 @@ class Bit_OTS_Admin {
 		return false;
 	}
 
+	/**
+	 * Handling the subscription create form posting in admin
+	 */
 	public function bitos_create_subs() {
 		$success = 'no';
 		Bit_OTS_Core()->admin->log( "Start creating subscriptions with posted data: " . print_r( $_POST, true ) );
@@ -109,6 +143,7 @@ class Bit_OTS_Admin {
 				}
 			}
 
+			//Calling create subscription function from common file for each individual order
 			Bit_OTS_Core()->admin->log( "Product id: $bit_ots_prod_id, Choice: $bit_choose_input and orders: " . print_r( $bit_orders_ar, true ) );
 			if ( is_array( $bit_orders_ar ) && count( $bit_orders_ar ) > 0 ) {
 				$result = Bit_OTS_Common::bitots_create_subsription( $bit_orders_ar, $bit_ots_prod_id );
@@ -116,6 +151,7 @@ class Bit_OTS_Admin {
 				$success = ( absint( count( $result ) ) === absint( count( $bit_orders_ar ) ) ) ? 'yes' : $success;
 			}
 		}
+		//Redirect on the same page after completing the subscription creation.
 		$redirect_url = add_query_arg( array(
 			'page'    => 'bit_ots',
 			'success' => $success,
@@ -124,11 +160,18 @@ class Bit_OTS_Admin {
 		exit( 45 );
 	}
 
+	/**
+	 * Including email reminder setting template
+	 */
 	public function bitsa_email_reminder() {
 		$settings_data = $this->bitos_get_email_settings();
 		include_once __DIR__ . '/views/bitos-email-sections.php';
 	}
 
+	/**
+	 * Function to return email setting when called
+	 * @return array
+	 */
 	public function bitos_get_email_settings() {
 		$db_data          = get_option( $this->option_key, [] );
 		$default_settings = $this->get_default_settings();
@@ -136,6 +179,10 @@ class Bit_OTS_Admin {
 		return wp_parse_args( $db_data, $default_settings );
 	}
 
+	/**
+	 * Function to return notification setting when called
+	 * @return array
+	 */
 	public function bitos_get_notes_settings() {
 		$db_data          = get_option( $this->notes_option_key, [] );
 		$default_settings = $this->get_default_notes_settings();
@@ -143,6 +190,9 @@ class Bit_OTS_Admin {
 		return wp_parse_args( $db_data, $default_settings );
 	}
 
+	/**
+	 * Updating email settings on submitting the admin form
+	 */
 	public function bitos_update_email_settings() {
 		$success = false;
 		if ( isset( $_POST['bitos_email_settings_nonce'] ) && wp_verify_nonce( $_POST['bitos_email_settings_nonce'], 'bitos_email_settings_nonce_val' ) ) {
@@ -179,6 +229,10 @@ class Bit_OTS_Admin {
 		exit( 45 );
 	}
 
+	/**
+	 * Return default form settings
+	 * @return array
+	 */
 	public function get_default_settings() {
 		return array(
 			'bit_ew_on'       => false,
@@ -196,6 +250,10 @@ class Bit_OTS_Admin {
 		);
 	}
 
+	/**
+	 * Return default notification form settings
+	 * @return array
+	 */
 	public function get_default_notes_settings() {
 		return array(
 			'bit_ots_button_text'      => 'My Subscription',
@@ -203,6 +261,9 @@ class Bit_OTS_Admin {
 		);
 	}
 
+	/**
+	 * Enable or disable the logging using query params
+	 */
 	public function enable_disable_logging() {
 		$enable = filter_input( INPUT_GET, 'bitos_enable_logging', FILTER_SANITIZE_STRING );
 		if ( ! empty( $enable ) && in_array( $enable, [ 'yes', 'no' ], true ) ) {
@@ -211,7 +272,7 @@ class Bit_OTS_Admin {
 	}
 
 	/**
-	 * Write a message to log if we're in "debug" mode.
+	 * Write a message to log in WC log tab if logging is enabled
 	 *
 	 * @param string $context
 	 * @param string $message
@@ -235,6 +296,9 @@ class Bit_OTS_Admin {
 		}
 	}
 
+	/**
+	 * Updating notification settings on submitting the admin form
+	 */
 	public function bitos_notification_settings() {
 		$success = 'no';
 		if ( isset( $_POST['bitos_create_notification_settings'] ) && wp_verify_nonce( $_POST['bitos_create_notification_settings'], 'bitos_notification_settings_nonce_val' ) ) {
@@ -260,6 +324,7 @@ class Bit_OTS_Admin {
 	}
 
 	/**
+	 * //Adding expiry date in subscription edit page
 	 * @param $subscription
 	 */
 	public function add_expiry_date( $subscription ) {
